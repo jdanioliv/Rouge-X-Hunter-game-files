@@ -1,0 +1,19 @@
+# Rojo / Wally artifacts
+/Packages
+/ServerPackages
+/DevPackages
+sourcemap.json
+
+# Roblox Studio lock files
+*.rbxlx.lock
+*.rbxl.lock
+
+# Build outputs
+*.rbxlx
+*.rbxl
+*.rbxm
+*.rbxmx
+
+# OS
+Thumbs.db
+.DS_Store
