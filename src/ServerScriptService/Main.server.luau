@@ -11,6 +11,8 @@ local PlayerStateService = require(servicesFolder.PlayerStateService)
 local NenAffinityService = require(servicesFolder.NenAffinityService)
 local CombatService = require(servicesFolder.CombatService)
 local NenAwakeningService = require(servicesFolder.NenAwakeningService)
+local MeditationService = require(servicesFolder.MeditationService)
+local WaterDivinationService = require(servicesFolder.WaterDivinationService)
 local SeiyakuService = require(servicesFolder.SeiyakuService)
 local HatsuService = require(servicesFolder.HatsuService)
 
@@ -19,7 +21,14 @@ PlayerStateService.Init()
 NenAffinityService.Init()
 CombatService.Init()
 NenAwakeningService.Init()
+-- MeditationService before WaterDivinationService: the cup reads live focus
+-- through it, and its interrupt hooks should be listening before any prop
+-- prompt can be triggered.
+MeditationService.Init()
+WaterDivinationService.Init()
 SeiyakuService.Init()
 HatsuService.Init()
 
-print("[RougeXHunter] Server initialized (Persistence, PlayerState, NenAffinity, Combat, Awakening, Seiyaku, Hatsu)")
+print(
+	"[RougeXHunter] Server initialized (Persistence, PlayerState, NenAffinity, Combat, Awakening, Meditation, WaterDivination, Seiyaku, Hatsu)"
+)

@@ -21,12 +21,15 @@ local REMOTE_EVENT_NAMES: { [string]: boolean } = {
 	AwakeningQTE = true, -- both ways: server starts the QTE, client reports result
 	HatsuIntent = true, -- client -> server: activate stored Seiyaku Hatsu
 	HatsuEffect = true, -- server -> client: blindness and other victim-side effects
+	FocusTick = true, -- client -> server: one rhythm hit during Natural Meditation
+	DivinationOutcome = true, -- server -> client: Water Divination result + cup VFX cue
 }
 
 local REMOTE_FUNCTION_NAMES: { [string]: boolean } = {
 	PurchaseSkillNode = true, -- client invokes: buy a skill node (server-verified)
 	SubmitSeiyakuBuild = true, -- client invokes: validate + store a Seiyaku build
 	GetSeiyakuBuild = true, -- client invokes: fetch stored build for editor hydration
+	ToggleMeditation = true, -- client invokes: enter/leave Natural Meditation (server decides)
 }
 
 local Remotes = {}

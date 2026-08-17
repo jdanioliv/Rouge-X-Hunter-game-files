@@ -26,6 +26,7 @@ PlayerStateService.GuardBroken = Signal.new() -- (player)
 PlayerStateService.SoulNodeLost = Signal.new() -- (player, remainingNodes, reason)
 PlayerStateService.CharacterWiped = Signal.new() -- (player)
 PlayerStateService.CombatLoggerDetected = Signal.new() -- (player, remainingTagSeconds)
+PlayerStateService.PlayerDamaged = Signal.new() -- (player, finalDamage, attacker?)
 
 local states: { [Player]: Types.PlayerState } = {}
 
@@ -46,6 +47,8 @@ local function newState(): Types.PlayerState
 		money = Constants.STARTING_MONEY,
 
 		nenAwakened = false,
+		meditationProgress = 0,
+		isMeditating = false,
 		awakeningPenalties = { bypassed = false, mutilated = false },
 		auraColor = table.clone(Constants.DEFAULT_AURA_COLOR),
 		seiyakuBuild = nil,
@@ -113,6 +116,7 @@ local function resetVolatile(state)
 	state.ryuRatio = { offense = 0.5, defense = 0.5 }
 	state.isDowned = false
 	state.downedEndsAt = 0
+	state.isMeditating = false -- accumulated meditationProgress is progression and survives
 	state.attackLockedUntil = 0
 	state.lastHatsuAt = 0
 	state.tenSealedUntil = 0
@@ -284,6 +288,51 @@ function PlayerStateService.SetBypassedPenalty(player: Player)
 end
 
 --------------------------------------------------------------------------------
+-- Natural Meditation progress (owned here because it persists; the live session
+-- itself is driven by MeditationService, the only writer of these fields)
+--------------------------------------------------------------------------------
+
+function PlayerStateService.GetMeditationProgress(player: Player): number
+	local state = states[player]
+	return state and state.meditationProgress or 0
+end
+
+-- Clamped to [0, MAX_PROGRESS]. Returns the resulting progress.
+function PlayerStateService.SetMeditationProgress(player: Player, progress: number): number
+	local state = states[player]
+	if not state or type(progress) ~= "number" or progress ~= progress then
+		return 0
+	end
+	state.meditationProgress = math.clamp(progress, 0, Constants.MEDITATION.MAX_PROGRESS)
+	return state.meditationProgress
+end
+
+function PlayerStateService.AddMeditationProgress(player: Player, amount: number): number
+	local state = states[player]
+	if not state then
+		return 0
+	end
+	return PlayerStateService.SetMeditationProgress(player, state.meditationProgress + amount)
+end
+
+function PlayerStateService.IsMeditationComplete(player: Player): boolean
+	local state = states[player]
+	return state ~= nil and state.meditationProgress >= Constants.DIVINATION.REQUIRED_PROGRESS
+end
+
+function PlayerStateService.SetMeditating(player: Player, meditating: boolean)
+	local state = states[player]
+	if state then
+		state.isMeditating = meditating
+	end
+end
+
+function PlayerStateService.IsMeditating(player: Player): boolean
+	local state = states[player]
+	return state ~= nil and state.isMeditating
+end
+
+--------------------------------------------------------------------------------
 -- Economy
 --------------------------------------------------------------------------------
 
@@ -402,6 +451,12 @@ function PlayerStateService.ApplyDamage(player: Player, baseAmount: number, atta
 	end
 
 	sendFeedback(player, "TookHit", finalDamage)
+
+	-- Lets MeditationService (and future systems) react to any HP loss without
+	-- this module having to know they exist.
+	if finalDamage > 0 then
+		PlayerStateService.PlayerDamaged:Fire(player, finalDamage, attacker)
+	end
 
 	if state.hp <= 0 then
 		PlayerStateService.EnterDownedState(player)
@@ -522,6 +577,7 @@ function PlayerStateService.BuildPersistedData(player: Player)
 		memorySlotsUsed = state.memorySlotsUsed,
 		money = state.money,
 		nenAwakened = state.nenAwakened,
+		meditationProgress = state.meditationProgress,
 		awakeningPenalties = table.clone(state.awakeningPenalties),
 		auraColor = table.clone(state.auraColor),
 		seiyakuBuild = state.seiyakuBuild,
@@ -547,6 +603,9 @@ function PlayerStateService.ApplyPersistedData(player: Player, data)
 	end
 
 	state.nenAwakened = data.nenAwakened == true
+	if type(data.meditationProgress) == "number" and data.meditationProgress == data.meditationProgress then
+		state.meditationProgress = math.clamp(data.meditationProgress, 0, Constants.MEDITATION.MAX_PROGRESS)
+	end
 	if type(data.awakeningPenalties) == "table" then
 		state.awakeningPenalties.bypassed = data.awakeningPenalties.bypassed == true
 		state.awakeningPenalties.mutilated = data.awakeningPenalties.mutilated == true
@@ -584,6 +643,9 @@ local function buildSnapshot(state): Types.StateSnapshot
 		memorySlotCap = state.memorySlotCap,
 		money = state.money,
 		nenAwakened = state.nenAwakened,
+		meditationProgress = state.meditationProgress,
+		maxMeditationProgress = Constants.MEDITATION.MAX_PROGRESS,
+		isMeditating = state.isMeditating,
 		auraState = state.auraState,
 		ryuOffense = state.ryuRatio.offense,
 		combatTagRemaining = math.max(0, state.combatTagEndsAt - os.clock()),

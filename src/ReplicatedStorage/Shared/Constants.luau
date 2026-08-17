@@ -62,6 +62,63 @@ local Constants = {
 	BYPASSED_EFFICIENCY_PENALTY = 15, -- flat efficiency loss on all non-innate categories
 	BYPASSED_HATSU_COST_MULTIPLIER = 1.25, -- +25% aura cost on Hatsu (consumed by future Hatsu system)
 
+	-- Natural Meditation (GDD section 3, the SAFE aura-opening path)
+	-- Slow, zero-risk alternative to the Gehaku catalyst: no soul node loss, no
+	-- mutilation, no Bypassed penalty. The cost is time and staying undisturbed.
+	MEDITATION = {
+		MAX_PROGRESS = 100,
+		TICK_GAIN = 5, -- focus gained per accepted FocusTick (20 ticks = full)
+		TICK_INTERVAL = 1.5, -- seconds the server requires between accepted ticks
+		BREAK_ON_DAMAGE = true, -- any HP loss cancels the session and keeps partial progress
+		BREAK_ON_MOVEMENT = true,
+		MOVEMENT_TOLERANCE = 4, -- studs of drift allowed before the session breaks
+		MISSED_TICK_GRACE = 3, -- seconds without a tick before the server auto-cancels
+		WALK_SPEED = 0, -- server-enforced immobilization while meditating
+	},
+
+	-- Water Divination Ceremony (GDD section 3): reveals the innate category.
+	-- Only reachable once meditation focus is full; this is the roll entry point
+	-- for players who never touched the illegal awakening NPC.
+	DIVINATION = {
+		CUP_TAG = "DivinationCup", -- CollectionService tag on the cup+leaf prop
+		REQUIRED_PROGRESS = 100, -- meditationProgress needed to attempt the ritual
+		REVEAL_SECONDS = 4, -- client animation length before the result settles
+		PROMPT_DISTANCE = 10,
+		-- Canonical category list lives in NenHexagon.Categories; this mirror
+		-- exists so the client VFX layer can iterate without requiring the
+		-- hexagon math module.
+		-- The index-signature casts below matter: strict-mode consumers index
+		-- these with a category string only known at runtime, which a struct
+		-- type would reject.
+		CATEGORIES = {
+			"Enhancement",
+			"Transmutation",
+			"Conjuration",
+			"Emission",
+			"Manipulation",
+			"Specialization",
+		} :: { string },
+		-- Practitioner nouns for UI/VFX copy. The category strings above stay the
+		-- persisted identifiers; these are display labels only.
+		CATEGORY_TITLES = {
+			Enhancement = "Enhancer",
+			Transmutation = "Transmuter",
+			Conjuration = "Conjurer",
+			Emission = "Emitter",
+			Manipulation = "Manipulator",
+			Specialization = "Specialist",
+		} :: { [string]: string },
+		-- The classic glass-of-water tells, one per category.
+		CATEGORY_TELLS = {
+			Enhancement = "The water rises and overflows the rim.",
+			Transmutation = "The water changes taste and colour.",
+			Conjuration = "Impurities materialise in the water.",
+			Emission = "The colour of the water shifts and flickers.",
+			Manipulation = "The leaf drifts across the surface on its own.",
+			Specialization = "Something else entirely happens.",
+		} :: { [string]: string },
+	},
+
 	-- Debug
 	AUTO_AWAKEN_DEBUG = true, -- Studio only: auto-awaken Nen + assign affinity on join for testing
 

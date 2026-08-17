@@ -11,6 +11,23 @@ export type NenCategory =
 
 export type AuraState = "None" | "Ten" | "Zetsu" | "Ren" | "Ken"
 
+-- Natural Meditation session state. Transient and server-owned: only the
+-- accumulated `focusProgress` survives into PersistedData.meditationProgress.
+-- `lastTickTimestamp` is the server clock reading of the last ACCEPTED
+-- FocusTick and is what makes tick-rate spoofing detectable.
+export type MeditationState = {
+	isMeditating: boolean,
+	focusProgress: number, -- 0..Constants.MEDITATION.MAX_PROGRESS
+	lastTickTimestamp: number,
+}
+
+-- Server -> client outcome of the Water Divination ceremony.
+export type DivinationResult = {
+	category: NenCategory,
+	success: boolean,
+	message: string?,
+}
+
 -- A player's innate Nen affinity. `secondary` is only set for rare
 -- in-between rolls (e.g. Killua/Machi between Transmutation and Enhancement).
 export type Affinity = {
@@ -62,6 +79,8 @@ export type PlayerState = {
 	money: number,
 
 	nenAwakened: boolean,
+	meditationProgress: number, -- 0..MEDITATION.MAX_PROGRESS; 100 unlocks Water Divination
+	isMeditating: boolean, -- mirrored here for replication; MeditationService is the only writer
 	awakeningPenalties: AwakeningPenalties,
 	auraColor: AuraColor,
 	seiyakuBuild: SeiyakuBuild?,
@@ -102,6 +121,9 @@ export type StateSnapshot = {
 	memorySlotCap: number,
 	money: number,
 	nenAwakened: boolean,
+	meditationProgress: number,
+	maxMeditationProgress: number,
+	isMeditating: boolean,
 	auraState: AuraState,
 	ryuOffense: number,
 	combatTagRemaining: number,
@@ -117,6 +139,7 @@ export type PersistedData = {
 	memorySlotsUsed: number,
 	money: number,
 	nenAwakened: boolean,
+	meditationProgress: number,
 	awakeningPenalties: AwakeningPenalties,
 	auraColor: AuraColor,
 	affinity: Affinity?,

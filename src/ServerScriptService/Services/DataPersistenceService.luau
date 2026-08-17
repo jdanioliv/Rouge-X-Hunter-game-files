@@ -165,6 +165,26 @@ local function saveProfile(player: Player): boolean
 end
 
 --------------------------------------------------------------------------------
+-- Public save API
+--------------------------------------------------------------------------------
+
+-- Forces an immediate atomic write for one player. Used by irreversible
+-- progression events that must survive a server crash the instant they happen
+-- (Water Divination awakening, character wipe). Yields; call from a task thread
+-- if the caller cannot block. Returns false when the profile never loaded, so a
+-- failed load can still never overwrite good data.
+function DataPersistenceService.SaveNow(player: Player): boolean
+	if not loaded[player] then
+		return false
+	end
+	return saveProfile(player)
+end
+
+function DataPersistenceService.IsLoaded(player: Player): boolean
+	return loaded[player] == true
+end
+
+--------------------------------------------------------------------------------
 -- Lifecycle
 --------------------------------------------------------------------------------
 
