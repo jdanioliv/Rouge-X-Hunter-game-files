@@ -96,7 +96,7 @@ async function logChange(routerRelPath, entry) {
 }
 
 function dailyNoteScaffold(dateStr) {
-  return `# ${dateStr}\n\n## Summary\n*(add your own notes here — what you worked on, decisions made, anything the automated log below won't capture)*\n\n## Automated changes\n${MARKER_START}\n${MARKER_END}\n\n## Links\n- [[00-Home]]\n`;
+  return `# ${dateStr}\n\n## Summary\n*(add your own notes here — what you worked on, decisions made, anything the automated log below won't capture)*\n\n## Automated changes\n${MARKER_START}\n${MARKER_END}\n\n## Links\n- [Home](../00-Home.md)\n`;
 }
 
 async function logToObsidianDaily(entry) {

@@ -20,6 +20,7 @@ Start with the vault's [home page](https://github.com/jdanioliv/Rouge-X-Hunter-o
 | `src/ServerScriptService/Services/` | Server-authoritative systems: combat, player state, persistence, Nen, meditation, Seiyaku, Hatsu |
 | `src/StarterPlayer/StarterPlayerScripts/Client/` | HUD, input, animation and VFX controllers. Clients send intents, never outcomes |
 | `scripts/`, `server/`, `dashboard/`, `templates/`, `memory/` | The Agentic OS: multi-model review pipeline, dashboard, routines. See `README_AGENTIC_OS.md` |
+| `tools/blender-pipeline/` | Backup of the Blender to Roblox asset pipeline and its exported meshes |
 | `CLAUDE.md`, `HERMES.md`, `GEMINI.md` | Working rules for the AI engineers on this project |
 | `Game_concept.md`, `IDEA.md` | The original game concept |
 

@@ -17,7 +17,9 @@
     "vault:index": "node scripts/vault_session.js index",
     "vault:status": "node scripts/vault_session.js status",
     "vault:publish": "node scripts/vault_session.js publish",
-    "vault:lint": "node scripts/vault_lint.js"
+    "vault:lint": "node scripts/vault_lint.js",
+    "vault:links": "node scripts/vault_links.js",
+    "vault:graph": "node scripts/vault_graph.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

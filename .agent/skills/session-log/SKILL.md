@@ -29,6 +29,7 @@ nothing still gets a five-line note.
    - Decisions (and the reason for each; link the note that holds the detail)
    - Verification (commands run and their result; say plainly what was NOT verified)
    - Open threads / next (what is unfinished, blocked, or proposed)
+   - Feedback for the owner (the most useful honest observations from this session)
 3. **Daily summary** - 2-5 bullets under `## Summary` in `GameNotes/Daily/<date>.md`.
    Never edit between the `<!-- AGENTIC-OS:RECENT-CHANGES:START/END -->` markers.
 4. **Keep system notes true** - for every service, module, tool or web-hub area
@@ -37,12 +38,16 @@ nothing still gets a five-line note.
    Rule, applied to docs). New long-lived subject -> new note with frontmatter
    (`title`, `tags`, `date`, `status`, `parent`, `related`, `source_files`) and a
    link from `00-Home.md`. Tick anything finished in `Roadmap.md`.
-5. **Lint**
+5. **Feedback** - add honest critique to `GameNotes/Feedback/Project-Feedback.md`, move anything
+   solved to its Resolved list, and give the highlights in the final message. The owner asked for
+   constant feedback, so do not soften it.
+6. **Graph and lint**
    ```
+   npm run vault:graph
    npm run vault:lint
    ```
    Fix every problem before publishing.
-6. **Publish** - use the commit attribution line the current session specifies.
+7. **Publish** - use the commit attribution line the current session specifies.
    ```
    npm run vault:publish -- --message "Session <date>: <title>" --trailer "<attribution line>"
    ```

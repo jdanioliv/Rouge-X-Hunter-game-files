@@ -96,8 +96,18 @@ re-verifies your refined code against real lint evidence, and Hermes's count
   2. Fill the session note: goal, files changed, decisions, verification, open threads.
   3. Write the day's `## Summary` in `GameNotes/Daily/<date>.md` (never inside the markers).
   4. Update every `Systems/`, `Reference/` or `Web-Hub/` note whose subject changed.
-  5. `npm run vault:lint` (zero dangling wikilinks), then
+  5. Add honest feedback to `GameNotes/Feedback/Project-Feedback.md`. The owner asked for constant feedback.
+  6. `npm run vault:graph` (rebuilds the graphify map), `npm run vault:lint` (zero broken links), then
      `npm run vault:publish -- --message "Session <date>: <title>"`.
+- Body links are standard relative markdown links, so they work in Obsidian and on GitHub. `vault:publish`
+  converts stray `[[wikilinks]]`.
 - Vault notes cite code as `path/File.luau:LINE`. If a note and the code disagree, the
   code is right: fix the note in the same turn.
 - Never put `.env` values or keys in the vault. Never force-push or rewrite its history.
+
+## 7. Repositories and the Knowledge Graph
+- **Game:** this repo, https://github.com/jdanioliv/Rouge-X-Hunter-game-files. Work on a branch and merge into `main`.
+- **Vault:** `GameNotes/`, its own repo, see section 6.
+- **Web app:** https://github.com/jdanioliv/Rouge-X-Hunter-WebApp. **On hold. Do not start it until the owner says so.**
+- Before exploring the code to answer an architecture question, read `GameNotes/Graph/GRAPH_REPORT.md` or query the
+  graph, which is far cheaper than reading files. See `GameNotes/Systems/Knowledge-Graph.md` for the commands.

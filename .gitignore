@@ -32,3 +32,9 @@ memory/index.json
 # GameNotes/ is its own git repo (https://github.com/jdanioliv/Rouge-X-Hunter-obsidian-vault),
 # pushed by `npm run vault:publish`. Ignored here so `git add .` never records it as a bare gitlink.
 GameNotes/
+
+# Graphify cache. The published graph lives in the vault at GameNotes/Graph/.
+graphify-out/
+
+# Blender auto-backups
+*.blend1
