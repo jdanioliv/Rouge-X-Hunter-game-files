@@ -15,6 +15,12 @@ nothing still gets a five-line note.
 - The work of a session is done and the final message is about to be written.
 - The user asks to log / document the session.
 
+## In a cloud session
+Run `bash scripts/cloud_bootstrap.sh --graph` first. If it reports the vault as missing, do not run this routine
+or `vault_session.js`: tell the owner, write the session note to `pending-vault-notes/<date>-<topic>.md`, and send
+it with `bash scripts/push_docs_to_main.sh "message"`. The next session that has the vault moves those notes in,
+then clears them with `--clear-pending`.
+
 ## Steps (in this order)
 1. **Open the note**
    ```
@@ -32,7 +38,9 @@ nothing still gets a five-line note.
    - Feedback for the owner (the most useful honest observations from this session)
 3. **Daily summary** - 2-5 bullets under `## Summary` in `GameNotes/Daily/<date>.md`.
    Never edit between the `<!-- AGENTIC-OS:RECENT-CHANGES:START/END -->` markers.
-4. **Keep system notes true** - for every service, module, tool or web-hub area
+4. **Keep `HANDOFF.md` true** - if the owner's rules, decisions, open questions, known bugs or next
+   steps changed, update it in the game repo and send it with `bash scripts/push_docs_to_main.sh "message"`.
+   **Keep system notes true** - for every service, module, tool or web-hub area
    whose behaviour or plan changed, update its note under `GameNotes/Systems/`,
    `GameNotes/Reference/` or `GameNotes/Web-Hub/` in the same turn (the Golden
    Rule, applied to docs). New long-lived subject -> new note with frontmatter
@@ -64,5 +72,5 @@ nothing still gets a five-line note.
 - NEVER write `.env` values, API keys, tokens or personal data into the vault.
 - NEVER edit `Sessions/_Index.md` or marker blocks by hand - they are generated.
 - NEVER force-push, amend, or rewrite history in the vault repo.
-- NEVER commit the game repo as part of this routine - the vault repo only.
+- NEVER commit other game repo files as part of this routine. Only `HANDOFF.md` and pending notes go, through the script.
 - NEVER describe work as verified when it was not; write "not verified" instead.

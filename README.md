@@ -11,6 +11,8 @@ A high-skill Action-RPG for Roblox inspired by Hunter x Hunter and Deepwoken, wr
 | [Rouge-X-Hunter-obsidian-vault](https://github.com/jdanioliv/Rouge-X-Hunter-obsidian-vault) | All documentation. Checked out locally at `GameNotes/`, which this repo ignores |
 | [Rouge-X-Hunter-WebApp](https://github.com/jdanioliv/Rouge-X-Hunter-WebApp) | The community website. On hold for now |
 
+**Picking up the work, or starting in the cloud?** Read [HANDOFF.md](HANDOFF.md).
+
 Start with the vault's [home page](https://github.com/jdanioliv/Rouge-X-Hunter-obsidian-vault/blob/main/00-Home.md). It documents every system below with code citations.
 
 ## What is in here

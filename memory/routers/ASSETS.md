@@ -28,5 +28,9 @@ Own git repo, remote github.com/jdanioliv/Rouge-X-Hunter-obsidian-vault. Tools:
 `scripts/vault_session.js` (new/index/status/publish), `scripts/vault_lint.js`.
 Process: `GameNotes/Process/Session-Documentation.md`.
 
+## Picking up the work
+`HANDOFF.md` holds current state for a new session. `scripts/cloud_bootstrap.sh` prepares a cloud session, and
+`scripts/push_docs_to_main.sh` sends the handoff to `main`. `tools/blender-pipeline/` backs up the asset pipeline.
+
 <!-- AGENTIC-OS:RECENT-CHANGES:START -->
 <!-- AGENTIC-OS:RECENT-CHANGES:END -->

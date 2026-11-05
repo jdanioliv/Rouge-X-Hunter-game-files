@@ -1,5 +1,12 @@
 # RougeXHunter — Architecture & Development Rules
 
+## 0. Start Here
+**In a cloud session, or if `GameNotes/` does not exist, read `HANDOFF.md` in full before doing anything.** It holds the owner's
+rules, decisions and current state, because local memory does not exist there. In the cloud, where it conflicts with
+sections 5, 6 or 7 below, `HANDOFF.md` wins.
+
+---
+
 ## 1. Project Overview & Role
 - **Game**: RougeXHunter (Roblox Action-RPG inspired by Hunter x Hunter & Deepwoken mechanics).
 - **Core Systems**: Frame-accurate parry/feint combat, 6-affinity Nen Hexagon mathematics, Seiyaku contracts/budget engine, Water Divination & Meditation progression, DataStore v2 + MemoryStore atomic session persistence.
@@ -30,6 +37,7 @@
   - `PlayerStateService.luau`: Authoritative character state machine, aura snapshots, mutilation/bypassed penalty multipliers.
   - `CombatService.luau`: Hitboxes, 10-frame parry windows, posture breaks, downed handling, combat logging NPC clones.
   - `NenAffinityService.luau`: Hexagon efficiency math, memory slot verification (`TryLearnSkillNode`), Water Divination roll.
+  - `NenAwakeningService.luau`: The forced awakening wheel and its QTE.
   - `SeiyakuService.luau` & `HatsuService.luau`: Contract validation and ability execution with dynamic condition checks.
   - `MeditationService.luau` & `WaterDivinationService.luau`: Safe aura opening minigame and ritual triggers.
 - `src/StarterPlayer/StarterPlayerScripts/Client/`:
@@ -79,6 +87,9 @@ re-verifies your refined code against real lint evidence, and Hermes's count
 — not your self-report — decides whether anything gets written. See
 `templates/REVIEW_RUBRIC.md` § External Evidence & Independent Verification.
 
+> Note: the weekly cleanup entries below never ran. Their reports contain only "Failed to spawn 'claude'". See
+> `GameNotes/Feedback/Project-Feedback.md`.
+
 <!-- AGENTIC-OS:RECENT-CHANGES:START -->
 - `2026-09-20T01:00:00.360Z` **weekly-2026-09-20** proposed cleanup for: `0 nightly report(s), 41 stale ref(s)` — see output/reviews/weekly/2026-09-20_proposal.md
 - `2026-09-13T01:00:00.791Z` **weekly-2026-09-13** proposed cleanup for: `0 nightly report(s), 41 stale ref(s)` — see output/reviews/weekly/2026-09-13_proposal.md
@@ -106,7 +117,10 @@ re-verifies your refined code against real lint evidence, and Hermes's count
 - Never put `.env` values or keys in the vault. Never force-push or rewrite its history.
 
 ## 7. Repositories and the Knowledge Graph
-- **Game:** this repo, https://github.com/jdanioliv/Rouge-X-Hunter-game-files. Work on a branch and merge into `main`.
+- Keep `HANDOFF.md` true: update it when the owner's rules, decisions, open questions, bugs or next steps change.
+- **Game:** this repo, https://github.com/jdanioliv/Rouge-X-Hunter-game-files. Work on a branch. Merge into `main` only with the owner's explicit
+  permission in that session. The exception is `HANDOFF.md` and `pending-vault-notes/`, which `scripts/push_docs_to_main.sh`
+  sends straight to `main` so the next session reads them.
 - **Vault:** `GameNotes/`, its own repo, see section 6.
 - **Web app:** https://github.com/jdanioliv/Rouge-X-Hunter-WebApp. **On hold. Do not start it until the owner says so.**
 - Before exploring the code to answer an architecture question, read `GameNotes/Graph/GRAPH_REPORT.md` or query the
