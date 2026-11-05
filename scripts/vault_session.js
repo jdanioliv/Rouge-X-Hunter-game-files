@@ -1,0 +1,266 @@
+#!/usr/bin/env node
+'use strict';
+// Session documentation CLI for the Obsidian vault (GameNotes/).
+//
+//   node scripts/vault_session.js new --title "What this session did" [--summary "one sentence"] [--slug custom-slug]
+//   node scripts/vault_session.js index
+//   node scripts/vault_session.js status
+//   node scripts/vault_session.js publish [--message "..."] [--trailer "Co-Authored-By: ..."] [--no-push]
+//   node scripts/vault_session.js help
+//
+// `new`     creates GameNotes/Sessions/<UTC date>-<slug>.md from Templates/Session-Note-Template.md,
+//           appends a line to today's daily note (same lockfile + markers routerSync.js uses),
+//           then rebuilds Sessions/_Index.md and the "Recent sessions" block on 00-Home.md.
+// `index`   rebuilds the index + home block only.
+// `status`  shows the vault repo's branch, unpushed commits, dirty files and today's session notes.
+// `publish` commits every change in GameNotes/ and pushes it to the vault's GitHub remote.
+//
+// GameNotes/ is its own git repository (nested in the game repo, which ignores it).
+// Dates are UTC to match routerSync.js. No dependencies beyond Node itself.
+
+const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+const REPO_ROOT = path.join(__dirname, '..');
+try { require('dotenv').config({ path: path.join(REPO_ROOT, '.env') }); } catch { /* dotenv is optional here */ }
+const { logToObsidianDaily } = require('./lib/routerSync');
+
+const VAULT_DIR_REL = process.env.OBSIDIAN_NOTES_DIR || 'GameNotes';
+const VAULT = path.join(REPO_ROOT, VAULT_DIR_REL);
+const SESSIONS = path.join(VAULT, 'Sessions');
+const TEMPLATE = path.join(VAULT, 'Templates', 'Session-Note-Template.md');
+const HOME = path.join(VAULT, '00-Home.md');
+const INDEX = path.join(SESSIONS, '_Index.md');
+const REMOTE_WEB = (process.env.VAULT_REMOTE_WEB || 'https://github.com/jdanioliv/Rouge-X-Hunter-obsidian-vault').replace(/\.git$/, '');
+const RECENT_START = '<!-- SESSIONS:RECENT:START -->';
+const RECENT_END = '<!-- SESSIONS:RECENT:END -->';
+const RECENT_COUNT = 7;
+
+const HELP = `vault_session.js - session notes for the Obsidian vault (${VAULT_DIR_REL}/)
+
+  new --title "..." [--summary "..."] [--slug x]   create today's session note + daily log line + index
+  index                                            rebuild Sessions/_Index.md and the home "Recent sessions" block
+  status                                           branch, unpushed commits, dirty files, today's session notes
+  publish [--message "..."] [--trailer "..."] [--no-push]
+                                                   git add -A, commit, push ${VAULT_DIR_REL}/ to its GitHub remote
+`;
+
+function parseArgs(argv) {
+  const out = { _: [] };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith('--')) {
+      const key = a.slice(2);
+      const next = argv[i + 1];
+      if (next !== undefined && !next.startsWith('--')) { out[key] = next; i++; } else { out[key] = true; }
+    } else {
+      out._.push(a);
+    }
+  }
+  return out;
+}
+
+const utcDate = () => new Date().toISOString().slice(0, 10);
+const utcTime = () => new Date().toISOString().slice(11, 16);
+const rel = (p) => path.relative(REPO_ROOT, p).split(path.sep).join('/');
+const oneLine = (s) => String(s || '').replace(/\s+/g, ' ').replace(/\|/g, '/').trim();
+
+function die(msg) {
+  console.error(`[vault] ${msg}`);
+  process.exit(1);
+}
+
+function slugify(s) {
+  const slug = String(s).toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 60);
+  return slug.replace(/^-|-$/g, '') || 'session';
+}
+
+function readFrontmatter(content) {
+  const fm = {};
+  if (!content.startsWith('---')) return fm;
+  const end = content.indexOf('\n---', 3);
+  if (end === -1) return fm;
+  for (const line of content.slice(3, end).split('\n')) {
+    const m = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+    if (!m) continue;
+    let v = m[2].trim();
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+    fm[m[1]] = v;
+  }
+  return fm;
+}
+
+function listSessions() {
+  if (!fs.existsSync(SESSIONS)) return [];
+  return fs.readdirSync(SESSIONS)
+    .filter((f) => f.endsWith('.md') && !f.startsWith('_'))
+    .map((f) => {
+      const fm = readFrontmatter(fs.readFileSync(path.join(SESSIONS, f), 'utf8'));
+      const stem = f.slice(0, -3);
+      const dateFromName = (stem.match(/^(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
+      return { file: f, stem, date: fm.date || dateFromName, title: fm.title || stem, summary: oneLine(fm.summary) };
+    })
+    .sort((a, b) => (b.date + b.stem).localeCompare(a.date + a.stem));
+}
+
+function buildIndex(sessions) {
+  const rows = sessions.map((s) => `| ${s.date} | [[Sessions/${s.stem}\\|${s.title}]] | ${s.summary} |`);
+  return `---
+title: Sessions Index
+tags: [index, sessions]
+status: generated
+parent: "[[00-Home]]"
+---
+# Sessions
+
+*Generated by \`node scripts/vault_session.js index\` (also run by \`new\`). Do not edit by hand - edit the session notes instead.*
+
+${sessions.length} session note(s), newest first.
+
+| Date | Session | Summary |
+|---|---|---|
+${rows.join('\n')}
+
+## Links
+- [[00-Home]]
+- [[Process/Session-Documentation|How sessions get documented]]
+`;
+}
+
+function updateHome(sessions) {
+  if (!fs.existsSync(HOME)) return false;
+  const content = fs.readFileSync(HOME, 'utf8');
+  const s = content.indexOf(RECENT_START);
+  const e = content.indexOf(RECENT_END);
+  if (s === -1 || e === -1 || e < s) {
+    console.warn('[vault] 00-Home.md has no SESSIONS:RECENT markers - home block skipped');
+    return false;
+  }
+  const lines = sessions.slice(0, RECENT_COUNT).map((x) => `- **[[Sessions/${x.stem}|${x.title}]]** - ${x.date}${x.summary ? ' - ' + x.summary : ''}`);
+  fs.writeFileSync(HOME, content.slice(0, s + RECENT_START.length) + `\n${lines.join('\n')}\n` + content.slice(e), 'utf8');
+  return true;
+}
+
+function cmdIndex() {
+  fs.mkdirSync(SESSIONS, { recursive: true });
+  const sessions = listSessions();
+  fs.writeFileSync(INDEX, buildIndex(sessions), 'utf8');
+  updateHome(sessions);
+  console.log(`[vault] indexed ${sessions.length} session note(s) -> ${rel(INDEX)}`);
+  return sessions;
+}
+
+async function cmdNew(args) {
+  const title = typeof args.title === 'string' ? args.title.trim() : '';
+  if (!title) die('--title "..." is required');
+  const summary = typeof args.summary === 'string' ? args.summary.trim() : '';
+  const date = utcDate();
+  const slug = typeof args.slug === 'string' ? slugify(args.slug) : slugify(title);
+  const file = path.join(SESSIONS, `${date}-${slug}.md`);
+  fs.mkdirSync(SESSIONS, { recursive: true });
+
+  if (fs.existsSync(file)) {
+    console.log(`[vault] session note already exists: ${rel(file)} (not overwritten)`);
+  } else {
+    if (!fs.existsSync(TEMPLATE)) die(`missing template: ${rel(TEMPLATE)}`);
+    const safeTitle = title.replace(/"/g, "'");
+    const body = fs.readFileSync(TEMPLATE, 'utf8')
+      .replace(/\{\{title\}\}/g, safeTitle)
+      .replace(/\{\{summary\}\}/g, summary.replace(/"/g, "'"))
+      .replace(/\{\{date\}\}/g, date)
+      .replace(/\{\{time\}\}/g, utcTime());
+    fs.writeFileSync(file, body, 'utf8');
+    console.log(`[vault] created ${rel(file)}`);
+    try {
+      await logToObsidianDaily({ runId: 'session', action: 'opened', file: `${VAULT_DIR_REL}/Sessions/${date}-${slug}.md`, note: safeTitle });
+      console.log(`[vault] logged to ${VAULT_DIR_REL}/Daily/${date}.md`);
+    } catch (err) {
+      console.warn(`[vault] daily note update failed (non-fatal): ${err.message}`);
+    }
+  }
+  cmdIndex();
+  console.log(file);
+}
+
+function git(args, { capture = true } = {}) {
+  const r = spawnSync('git', args, { cwd: VAULT, encoding: 'utf8', stdio: capture ? ['ignore', 'pipe', 'pipe'] : 'inherit' });
+  if (r.error) throw r.error;
+  return r;
+}
+
+function gitOut(args) {
+  const r = git(args);
+  if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${(r.stderr || '').trim()}`);
+  return (r.stdout || '').trim();
+}
+
+function ensureVaultRepo() {
+  if (fs.existsSync(path.join(VAULT, '.git'))) return;
+  die(`${rel(VAULT)} is not a git repo. One-time setup:\n` +
+    `  git -C "${VAULT}" init -b tmp\n` +
+    `  git -C "${VAULT}" remote add origin ${REMOTE_WEB}.git\n` +
+    `  git -C "${VAULT}" fetch origin\n` +
+    `  git -C "${VAULT}" checkout -b main --track origin/main`);
+}
+
+function unpushedCount() {
+  const up = git(['rev-list', '--count', '@{u}..HEAD']);
+  return up.status === 0 ? parseInt((up.stdout || '').trim(), 10) : NaN;
+}
+
+function cmdStatus() {
+  ensureVaultRepo();
+  const branch = gitOut(['rev-parse', '--abbrev-ref', 'HEAD']);
+  const porcelain = gitOut(['status', '--porcelain']);
+  const unpushed = unpushedCount();
+  console.log(`[vault] ${rel(VAULT)} on ${branch} - ${Number.isNaN(unpushed) ? 'no upstream configured' : unpushed + ' commit(s) not pushed'}`);
+  console.log(porcelain || '[vault] working tree clean');
+  const today = listSessions().filter((s) => s.date === utcDate());
+  console.log(`[vault] session notes today: ${today.length ? today.map((s) => s.stem).join(', ') : 'none'}`);
+}
+
+function cmdPublish(args) {
+  ensureVaultRepo();
+  const branch = gitOut(['rev-parse', '--abbrev-ref', 'HEAD']);
+  const add = git(['add', '-A']);
+  if (add.status !== 0) die(`git add failed: ${(add.stderr || '').trim()}`);
+
+  if (gitOut(['status', '--porcelain'])) {
+    const base = typeof args.message === 'string' && args.message.trim() ? args.message.trim() : `Vault update ${utcDate()}`;
+    const trailer = typeof args.trailer === 'string' && args.trailer.trim() ? `\n\n${args.trailer.trim()}` : '';
+    const msgFile = path.join(VAULT, '.git', 'VAULT_COMMIT_MSG');
+    fs.writeFileSync(msgFile, `${base}${trailer}\n`, 'utf8');
+    const c = git(['commit', '-q', '-F', msgFile]);
+    try { fs.unlinkSync(msgFile); } catch { /* ignore */ }
+    if (c.status !== 0) die(`commit failed: ${(c.stderr || c.stdout || '').trim()}`);
+    console.log(`[vault] committed ${gitOut(['rev-parse', '--short', 'HEAD'])}: ${base}`);
+  } else {
+    console.log('[vault] nothing new to commit');
+  }
+
+  if (args['no-push']) {
+    console.log('[vault] --no-push: skipped push');
+    return;
+  }
+  if (unpushedCount() === 0) {
+    console.log('[vault] already up to date with origin');
+    return;
+  }
+  const p = git(['push', '-u', 'origin', branch], { capture: false });
+  if (p.status !== 0) die('push failed (see git output above). If a credential window appeared, complete it and re-run `npm run vault:publish`.');
+  console.log(`[vault] pushed ${branch} -> ${REMOTE_WEB}/commit/${gitOut(['rev-parse', 'HEAD'])}`);
+}
+
+(async () => {
+  const args = parseArgs(process.argv.slice(2));
+  const cmd = args._[0] || 'help';
+  switch (cmd) {
+    case 'new': await cmdNew(args); break;
+    case 'index': cmdIndex(); break;
+    case 'status': cmdStatus(); break;
+    case 'publish': cmdPublish(args); break;
+    case 'help': case '--help': case '-h': console.log(HELP); break;
+    default: die(`unknown command "${cmd}"\n${HELP}`);
+  }
+})().catch((err) => die(err.message));
