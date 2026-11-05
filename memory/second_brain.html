@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RougeXHunter — Second Brain</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel-2: #1e222b; --border: #2a2f3a;
+    --text: #e6e8ec; --text-dim: #9aa1ad; --accent: #7c9eff; --accent-2: #ff9d5c;
+    --good: #5ed99b; --warn: #f2c14e; --bad: #f2604e; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7fa; --panel:#ffffff; --panel-2:#eef0f4; --border:#dde1e8; --text:#1b1e24; --text-dim:#5b6270; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family: -apple-system, Segoe UI, Roboto, sans-serif; }
+  header { padding: 20px 24px 12px; border-bottom: 1px solid var(--border); }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  .sub { color: var(--text-dim); font-size: 13px; }
+  .stats { display:flex; gap:16px; margin-top:12px; flex-wrap:wrap; }
+  .stat { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:8px 14px; font-size:13px; }
+  .stat b { font-size:16px; display:block; color:var(--accent); }
+  .controls { padding: 16px 24px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; border-bottom: 1px solid var(--border); background:var(--panel); }
+  input[type=search] { flex:1; min-width:220px; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); font-size:14px; }
+  .chip { padding:6px 12px; border-radius:999px; border:1px solid var(--border); background:var(--panel-2); color:var(--text-dim); cursor:pointer; font-size:12px; user-select:none; }
+  .chip.active { background:var(--accent); color:#0f1115; border-color:var(--accent); font-weight:600; }
+  .tabs { display:flex; gap:8px; padding: 10px 24px 0; }
+  .tab { padding:8px 16px; cursor:pointer; color:var(--text-dim); border-bottom:2px solid transparent; font-size:13px; }
+  .tab.active { color:var(--text); border-color:var(--accent); }
+  main { padding: 16px 24px 40px; }
+  table { width:100%; border-collapse: collapse; font-size:13px; }
+  th { text-align:left; color:var(--text-dim); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); }
+  td { padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tr:hover td { background: var(--panel-2); }
+  .path { font-family: var(--mono); font-size:12px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; background:var(--panel-2); border:1px solid var(--border); color:var(--text-dim); }
+  .copy-btn { border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:6px; padding:4px 8px; font-size:11px; cursor:pointer; }
+  .copy-btn:active { transform: scale(0.96); }
+  .empty { color:var(--text-dim); text-align:center; padding:40px 0; }
+  .crit-0 { color: var(--good); font-weight:600; }
+  .crit-pos { color: var(--bad); font-weight:600; }
+  .crit-unknown { color: var(--warn); font-weight:600; }
+  #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--accent); color:#0f1115; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; opacity:0; pointer-events:none; transition:opacity .15s; }
+  #toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RougeXHunter — Second Brain</h1>
+  <div class="sub" id="genInfo">No index loaded yet.</div>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="files">Files</div>
+  <div class="tab" data-tab="reviews">Review Runs</div>
+</div>
+
+<div class="controls" id="fileControls">
+  <input type="search" id="search" placeholder="Search by path or filename…" />
+  <div id="chips"></div>
+</div>
+
+<main>
+  <div id="filesPanel"></div>
+  <div id="reviewsPanel" style="display:none;"></div>
+</main>
+
+<div id="toast"></div>
+
+<!-- MEMORY-DATA:START -->
+<script id="memory-data" type="application/json">{"generatedAtMs":1787417837407,"fileCount":39,"files":[{"path":".agent/skills/dual-code/SKILL.md","name":"SKILL.md","category":"Skill","sizeBytes":2274,"mtimeMs":1787417389906.005},{"path":".agent/skills/dual-debug/SKILL.md","name":"SKILL.md","category":"Skill","sizeBytes":2099,"mtimeMs":1787417389909.4392},{"path":".agent/skills/dual-refactor/SKILL.md","name":"SKILL.md","category":"Skill","sizeBytes":1899,"mtimeMs":1787417389907.691},{"path":".claude/skills/dual-code/SKILL.md","name":"SKILL.md","category":"Skill","sizeBytes":2274,"mtimeMs":1787417370546.3396},{"path":".claude/skills/dual-debug/SKILL.md","name":"SKILL.md","category":"Skill","sizeBytes":2099,"mtimeMs":1787417385122.3406},{"path":".claude/skills/dual-refactor/SKILL.md","name":"SKILL.md","category":"Skill","sizeBytes":1899,"mtimeMs":1787417377094.34},{"path":".env.example","name":".env.example","category":"Other","sizeBytes":948,"mtimeMs":1787417208554.33},{"path":".gitignore","name":".gitignore","category":"Other","sizeBytes":290,"mtimeMs":1787417697822.3591},{"path":"CLAUDE.md","name":"CLAUDE.md","category":"Root Router","sizeBytes":5058,"mtimeMs":1787417496662.3472},{"path":"HERMES.md","name":"HERMES.md","category":"Root Router","sizeBytes":2186,"mtimeMs":1787417473638.3457},{"path":"README_AGENTIC_OS.md","name":"README_AGENTIC_OS.md","category":"Docs","sizeBytes":3265,"mtimeMs":1787417715274.36},{"path":"dashboard/index.html","name":"index.html","category":"Agentic OS","sizeBytes":12659,"mtimeMs":1787417639410.3557},{"path":"ecosystem.config.js","name":"ecosystem.config.js","category":"Other","sizeBytes":1092,"mtimeMs":1787417692986.359},{"path":"memory/index.json","name":"index.json","category":"Other","sizeBytes":8572,"mtimeMs":1787417768898.3633},{"path":"memory/routers/ASSETS.md","name":"ASSETS.md","category":"Memory Router","sizeBytes":1239,"mtimeMs":1787417459150.345},{"path":"memory/routers/NETWORKING.md","name":"NETWORKING.md","category":"Memory Router","sizeBytes":1130,"mtimeMs":1787417458618.345},{"path":"memory/routers/SYSTEMS.md","name":"SYSTEMS.md","category":"Memory Router","sizeBytes":1842,"mtimeMs":1787417449446.3442},{"path":"memory/second_brain.html","name":"second_brain.html","category":"Other","sizeBytes":16654,"mtimeMs":1787417768898.3633},{"path":"output/artifacts/.gitkeep","name":".gitkeep","category":"Artifact","sizeBytes":0,"mtimeMs":1787417198030.3293},{"path":"output/reviews/.gitkeep","name":".gitkeep","category":"Review Log","sizeBytes":0,"mtimeMs":1787417198030.3293},{"path":"package-lock.json","name":"package-lock.json","category":"Other","sizeBytes":30833,"mtimeMs":1787417216642.3306},{"path":"package.json","name":"package.json","category":"Other","sizeBytes":888,"mtimeMs":1787417203762.3296},{"path":"runs.log","name":"runs.log","category":"Other","sizeBytes":0,"mtimeMs":1787417837378.3674},{"path":"scripts/co_optimizer.js","name":"co_optimizer.js","category":"Agentic OS","sizeBytes":15347,"mtimeMs":1787417353246.3386},{"path":"scripts/lib/claudeAgent.js","name":"claudeAgent.js","category":"Agentic OS","sizeBytes":2633,"mtimeMs":1787417808166.3657},{"path":"scripts/lib/hermesAgent.js","name":"hermesAgent.js","category":"Agentic OS","sizeBytes":3310,"mtimeMs":1787417266690.3335},{"path":"scripts/lib/reviewLogger.js","name":"reviewLogger.js","category":"Agentic OS","sizeBytes":2466,"mtimeMs":1787417277706.334},{"path":"scripts/lib/routerSync.js","name":"routerSync.js","category":"Agentic OS","sizeBytes":1988,"mtimeMs":1787417285146.3345},{"path":"scripts/lib/rubric.js","name":"rubric.js","category":"Agentic OS","sizeBytes":695,"mtimeMs":1787417247742.3323},{"path":"scripts/routines/nightly_code_audit.js","name":"nightly_code_audit.js","category":"Agentic OS","sizeBytes":2927,"mtimeMs":1787417652754.3564},{"path":"scripts/routines/nightly_code_audit.ps1","name":"nightly_code_audit.ps1","category":"Agentic OS","sizeBytes":396,"mtimeMs":1787417681866.3582},{"path":"scripts/routines/nightly_code_audit.sh","name":"nightly_code_audit.sh","category":"Agentic OS","sizeBytes":279,"mtimeMs":1787417677502.358},{"path":"scripts/routines/scheduler.js","name":"scheduler.js","category":"Agentic OS","sizeBytes":1637,"mtimeMs":1787417675866.3577},{"path":"scripts/routines/weekly_architect_cleanup.js","name":"weekly_architect_cleanup.js","category":"Agentic OS","sizeBytes":4300,"mtimeMs":1787417667238.3572},{"path":"scripts/routines/weekly_architect_cleanup.ps1","name":"weekly_architect_cleanup.ps1","category":"Agentic OS","sizeBytes":543,"mtimeMs":1787417683898.3582},{"path":"scripts/routines/weekly_architect_cleanup.sh","name":"weekly_architect_cleanup.sh","category":"Agentic OS","sizeBytes":287,"mtimeMs":1787417679138.358},{"path":"scripts/update_memory_index.js","name":"update_memory_index.js","category":"Agentic OS","sizeBytes":3720,"mtimeMs":1787417513918.3481},{"path":"server/runner.js","name":"runner.js","category":"Agentic OS","sizeBytes":6906,"mtimeMs":1787417595538.353},{"path":"templates/REVIEW_RUBRIC.md","name":"REVIEW_RUBRIC.md","category":"Rubric/Template","sizeBytes":3119,"mtimeMs":1787417242814.332}],"reviews":[]}</script>
+<!-- MEMORY-DATA:END -->
+
+<script>
+(function () {
+  var state = { data: null, query: '', activeCategories: new Set(), tab: 'files' };
+
+  function fmtBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+  function fmtDate(ms) {
+    if (!ms) return '—';
+    var d = new Date(ms);
+    return d.toLocaleString();
+  }
+  function toast(msg) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(function () { el.classList.remove('show'); }, 1200);
+  }
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () { toast('Copied: ' + text); });
+      return;
+    }
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand('copy'); toast('Copied: ' + text); } catch (e) { toast('Copy failed'); }
+    document.body.removeChild(ta);
+  }
+
+  function loadEmbedded() {
+    try {
+      var raw = document.getElementById('memory-data').textContent;
+      var parsed = JSON.parse(raw);
+      if (parsed && parsed.files && parsed.files.length) return parsed;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function init(data) {
+    state.data = data;
+    render();
+  }
+
+  function fallbackFetch() {
+    fetch('index.json').then(function (r) { return r.json(); }).then(init).catch(function () {
+      document.getElementById('genInfo').textContent =
+        'No index found. Run "node scripts/update_memory_index.js" (or npm run update-memory) from the project root, then reload this file.';
+    });
+  }
+
+  var embedded = loadEmbedded();
+  if (embedded) init(embedded); else fallbackFetch();
+
+  document.getElementById('search').addEventListener('input', function (e) {
+    state.query = e.target.value.toLowerCase();
+    renderFiles();
+  });
+
+  document.querySelectorAll('.tab').forEach(function (tabEl) {
+    tabEl.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+      tabEl.classList.add('active');
+      state.tab = tabEl.dataset.tab;
+      document.getElementById('fileControls').style.display = state.tab === 'files' ? 'flex' : 'none';
+      document.getElementById('filesPanel').style.display = state.tab === 'files' ? 'block' : 'none';
+      document.getElementById('reviewsPanel').style.display = state.tab === 'reviews' ? 'block' : 'none';
+    });
+  });
+
+  function render() {
+    var d = state.data;
+    document.getElementById('genInfo').textContent = 'Generated ' + fmtDate(d.generatedAtMs) + ' · ' + d.fileCount + ' files indexed';
+    var reviewCount = (d.reviews || []).length;
+    document.getElementById('stats').innerHTML =
+      '<div class="stat"><b>' + d.fileCount + '</b>Files</div>' +
+      '<div class="stat"><b>' + reviewCount + '</b>Review Runs</div>' +
+      '<div class="stat"><b>' + (d.files || []).filter(function(f){return f.category==='Artifact';}).length + '</b>Artifacts</div>';
+
+    var cats = Array.from(new Set(d.files.map(function (f) { return f.category; }))).sort();
+    var chipsEl = document.getElementById('chips');
+    chipsEl.innerHTML = '';
+    cats.forEach(function (c) {
+      var chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.textContent = c;
+      chip.addEventListener('click', function () {
+        if (state.activeCategories.has(c)) { state.activeCategories.delete(c); chip.classList.remove('active'); }
+        else { state.activeCategories.add(c); chip.classList.add('active'); }
+        renderFiles();
+      });
+      chipsEl.appendChild(chip);
+    });
+
+    renderFiles();
+    renderReviews();
+  }
+
+  function renderFiles() {
+    var d = state.data;
+    var rows = d.files.filter(function (f) {
+      if (state.activeCategories.size && !state.activeCategories.has(f.category)) return false;
+      if (state.query && f.path.toLowerCase().indexOf(state.query) === -1) return false;
+      return true;
+    }).sort(function (a, b) { return b.mtimeMs - a.mtimeMs; });
+
+    var html = '<table><thead><tr><th>Path</th><th>Category</th><th>Size</th><th>Modified</th><th></th></tr></thead><tbody>';
+    if (!rows.length) {
+      html = '<div class="empty">No files match.</div>';
+    } else {
+      rows.forEach(function (f) {
+        html += '<tr><td class="path">' + f.path + '</td>' +
+                '<td><span class="badge">' + f.category + '</span></td>' +
+                '<td>' + fmtBytes(f.sizeBytes) + '</td>' +
+                '<td>' + fmtDate(f.mtimeMs) + '</td>' +
+                '<td><button class="copy-btn" data-path="' + f.path.replace(/"/g, '&quot;') + '">Copy path</button></td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    document.getElementById('filesPanel').innerHTML = html;
+    document.querySelectorAll('.copy-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () { copyText(btn.dataset.path); });
+    });
+  }
+
+  function renderReviews() {
+    var reviews = (state.data.reviews || []);
+    if (!reviews.length) {
+      document.getElementById('reviewsPanel').innerHTML = '<div class="empty">No co-optimizer runs yet. Run <code>npm run co-optimize</code> to create one.</div>';
+      return;
+    }
+    var html = '<table><thead><tr><th>Run ID</th><th>Mode</th><th>Started</th><th>Critical Remaining</th><th>Stages</th></tr></thead><tbody>';
+    reviews.forEach(function (r) {
+      var critClass = r.criticalIssuesRemaining === 0 ? 'crit-0' : (r.criticalIssuesRemaining > 0 ? 'crit-pos' : 'crit-unknown');
+      var critLabel = r.criticalIssuesRemaining === 0 ? '0 (clean)' : (r.criticalIssuesRemaining < 0 ? 'unparseable' : r.criticalIssuesRemaining);
+      html += '<tr><td class="path">' + r.runId + '</td><td><span class="badge">' + r.mode + '</span></td>' +
+              '<td>' + fmtDate(r.startedAtMs) + '</td>' +
+              '<td class="' + critClass + '">' + critLabel + '</td>' +
+              '<td>' + (r.stages || []).length + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('reviewsPanel').innerHTML = html;
+  }
+})();
+</script>
+</body>
+</html>

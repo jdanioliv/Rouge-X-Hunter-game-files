@@ -17,3 +17,18 @@ sourcemap.json
 # OS
 Thumbs.db
 .DS_Store
+
+# --- Agentic OS (added) ---
+node_modules/
+.env
+/output/
+runs.log
+memory/index.json
+# Transient lockfiles from scripts/lib/routerSync.js (CLAUDE.md.lock,
+# HERMES.md.lock, GameNotes/Daily/*.md.lock) - released immediately after
+# each write, only survive on disk if a run crashed mid-write.
+*.md.lock
+
+# GameNotes/ is its own git repo (https://github.com/jdanioliv/Rouge-X-Hunter-obsidian-vault),
+# pushed by `npm run vault:publish`. Ignored here so `git add .` never records it as a bare gitlink.
+GameNotes/

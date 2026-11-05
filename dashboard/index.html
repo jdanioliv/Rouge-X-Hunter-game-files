@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RougeXHunter — Agentic OS Command Centre</title>
+<style>
+  :root {
+    --bg:#0f1115; --panel:#171a21; --panel-2:#1e222b; --border:#2a2f3a;
+    --text:#e6e8ec; --text-dim:#9aa1ad; --accent:#7c9eff; --accent-2:#ff9d5c;
+    --good:#5ed99b; --warn:#f2c14e; --bad:#f2604e; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7fa; --panel:#ffffff; --panel-2:#eef0f4; --border:#dde1e8; --text:#1b1e24; --text-dim:#5b6270; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+  header h1 { font-size:18px; margin:0; }
+  header .status { font-size:12px; color:var(--text-dim); }
+  header .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:var(--bad); }
+  header .dot.up { background:var(--good); }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; padding:16px 24px 40px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; }
+  .panel h2 { font-size:14px; margin:0 0 12px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; }
+  .full { grid-column: 1 / -1; }
+  label { display:block; font-size:12px; color:var(--text-dim); margin:10px 0 4px; }
+  input[type=text], textarea, select { width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); font-size:13px; font-family:inherit; }
+  textarea { min-height:70px; resize:vertical; }
+  .row { display:flex; gap:10px; }
+  .row > * { flex:1; }
+  .checkrow { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:12px; color:var(--text-dim); }
+  button { cursor:pointer; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:600; margin-top:12px; }
+  .btn-primary { background:var(--accent); color:#0f1115; }
+  .btn-secondary { background:var(--panel-2); color:var(--text); border:1px solid var(--border); }
+  .btn-warn { background:var(--accent-2); color:#1a1200; }
+  .tabbar { display:flex; gap:8px; margin-bottom:12px; }
+  .tabbtn { padding:6px 12px; border-radius:6px; background:var(--panel-2); color:var(--text-dim); font-size:12px; cursor:pointer; border:1px solid var(--border);}
+  .tabbtn.active { color:var(--text); border-color:var(--accent); }
+  .list { max-height:260px; overflow-y:auto; font-size:12px; }
+  .list .item { display:flex; justify-content:space-between; padding:6px 4px; border-bottom:1px solid var(--border); }
+  .item .path { font-family:var(--mono); }
+  .item .meta { color:var(--text-dim); }
+  #log { background:#05070a; color:#c8e6c9; font-family:var(--mono); font-size:12px; padding:12px; border-radius:8px; height:280px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; }
+  iframe { width:100%; height:520px; border:1px solid var(--border); border-radius:8px; }
+  .result-box { margin-top:10px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:10px; font-family:var(--mono); font-size:12px; white-space:pre-wrap; max-height:220px; overflow-y:auto; }
+  .badge { padding:2px 8px; border-radius:999px; font-size:11px; background:var(--panel-2); border:1px solid var(--border); }
+  .crit-0 { color:var(--good); font-weight:700; }
+  .crit-pos { color:var(--bad); font-weight:700; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RougeXHunter — Agentic OS Command Centre</h1>
+  <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">connecting…</span></div>
+</header>
+
+<div class="grid">
+
+  <!-- Section 1: Co-Optimization Studio -->
+  <div class="panel full">
+    <h2>1 · Co-Optimization Studio</h2>
+    <div class="tabbar">
+      <div class="tabbtn active" data-mode="dual-code">Dual-Coder</div>
+      <div class="tabbtn" data-mode="dual-refactor">Refactorer</div>
+      <div class="tabbtn" data-mode="dual-debug">Bug Hunter</div>
+    </div>
+
+    <div id="form-dual-code">
+      <label>Feature prompt</label>
+      <textarea id="dc-prompt" placeholder="e.g. Add a Hatsu cooldown-reset item — Gemini plans it, Claude implements, Hermes+Gemini review, Hermes verifies"></textarea>
+      <label>Target file (optional, relative path)</label>
+      <input type="text" id="dc-target" placeholder="src/ServerScriptService/Services/HatsuService.luau" />
+    </div>
+
+    <div id="form-dual-refactor" style="display:none;">
+      <label>Target file (required, must already exist)</label>
+      <input type="text" id="dr-target" placeholder="src/ServerScriptService/Services/CombatService.luau" />
+    </div>
+
+    <div id="form-dual-debug" style="display:none;">
+      <label>Error trace / repro text</label>
+      <textarea id="dd-trace" placeholder="attempt to index nil with 'Character' at PlayerStateService.luau:142"></textarea>
+      <label>Related file (optional)</label>
+      <input type="text" id="dd-target" placeholder="src/ServerScriptService/Services/PlayerStateService.luau" />
+    </div>
+
+    <div class="checkrow">
+      <input type="checkbox" id="applyCheck" /> <label style="margin:0;" for="applyCheck">Apply directly to live file (unchecked = write to output/artifacts only)</label>
+    </div>
+    <div class="checkrow">
+      <input type="checkbox" id="dryRunCheck" /> <label style="margin:0;" for="dryRunCheck">Dry run (stub agent calls — verify pipeline wiring only)</label>
+    </div>
+
+    <button class="btn-primary" id="runBtn">Run Co-Optimization</button>
+    <div class="result-box" id="runResult" style="display:none;"></div>
+  </div>
+
+  <!-- Section 2: Artifacts & Review Feed -->
+  <div class="panel">
+    <h2>2 · Artifacts &amp; Review Feed</h2>
+    <label>Artifacts (output/artifacts/)</label>
+    <div class="list" id="artifactsList"><div class="item">Loading…</div></div>
+    <label>Review Runs (output/reviews/)</label>
+    <div class="list" id="reviewsList"><div class="item">Loading…</div></div>
+    <button class="btn-secondary" id="refreshFeedBtn">Refresh Feed</button>
+  </div>
+
+  <!-- Direct agent calls -->
+  <div class="panel">
+    <h2>Direct Agent Calls</h2>
+    <label>Prompt</label>
+    <textarea id="directPrompt" placeholder="Ask any of the three engineers directly (bypasses the review loop)"></textarea>
+    <div class="row">
+      <button class="btn-secondary" id="askClaudeBtn">Ask Claude Opus 5</button>
+      <button class="btn-secondary" id="askHermesBtn">Ask Hermes / Ox Alpha</button>
+      <button class="btn-secondary" id="askGeminiBtn">Ask Gemini</button>
+    </div>
+    <div class="result-box" id="directResult" style="display:none;"></div>
+  </div>
+
+  <!-- Section 3: Live Output Stream -->
+  <div class="panel full">
+    <h2>3 · Live Output Stream</h2>
+    <div id="log"></div>
+  </div>
+
+  <!-- Section 4: Visual Second Brain -->
+  <div class="panel full">
+    <h2>4 · Visual Second Brain</h2>
+    <iframe src="/memory/second_brain.html" title="Second Brain"></iframe>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  var API = '';
+  var currentMode = 'dual-code';
+
+  document.querySelectorAll('.tabbtn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tabbtn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentMode = btn.dataset.mode;
+      document.getElementById('form-dual-code').style.display = currentMode === 'dual-code' ? 'block' : 'none';
+      document.getElementById('form-dual-refactor').style.display = currentMode === 'dual-refactor' ? 'block' : 'none';
+      document.getElementById('form-dual-debug').style.display = currentMode === 'dual-debug' ? 'block' : 'none';
+    });
+  });
+
+  function fmtDate(ms) { return ms ? new Date(ms).toLocaleString() : '—'; }
+  function fmtBytes(n) { return n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB'; }
+
+  async function postJSON(url, body) {
+    var res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return res.json();
+  }
+
+  document.getElementById('runBtn').addEventListener('click', async function () {
+    var apply = document.getElementById('applyCheck').checked;
+    var dryRun = document.getElementById('dryRunCheck').checked;
+    var endpoint = '/api/run/' + currentMode;
+    var body = { apply: apply, dryRun: dryRun };
+    if (currentMode === 'dual-code') {
+      body.prompt = document.getElementById('dc-prompt').value;
+      body.target = document.getElementById('dc-target').value || undefined;
+    } else if (currentMode === 'dual-refactor') {
+      body.target = document.getElementById('dr-target').value;
+    } else {
+      body.trace = document.getElementById('dd-trace').value;
+      body.target = document.getElementById('dd-target').value || undefined;
+    }
+    var box = document.getElementById('runResult');
+    box.style.display = 'block';
+    box.textContent = 'Launching ' + currentMode + '…';
+    try {
+      var result = await postJSON(endpoint, body);
+      box.textContent = JSON.stringify(result, null, 2);
+    } catch (e) {
+      box.textContent = 'Request failed: ' + e.message;
+    }
+  });
+
+  document.getElementById('askClaudeBtn').addEventListener('click', async function () {
+    var box = document.getElementById('directResult');
+    box.style.display = 'block'; box.textContent = 'Asking Claude…';
+    var r = await postJSON('/api/run/claude', { prompt: document.getElementById('directPrompt').value });
+    box.textContent = r.text || JSON.stringify(r, null, 2);
+  });
+  document.getElementById('askHermesBtn').addEventListener('click', async function () {
+    var box = document.getElementById('directResult');
+    box.style.display = 'block'; box.textContent = 'Asking Hermes/Ox Alpha…';
+    var r = await postJSON('/api/run/hermes', { prompt: document.getElementById('directPrompt').value });
+    box.textContent = r.text || JSON.stringify(r, null, 2);
+  });
+  document.getElementById('askGeminiBtn').addEventListener('click', async function () {
+    var box = document.getElementById('directResult');
+    box.style.display = 'block'; box.textContent = 'Asking Gemini…';
+    var r = await postJSON('/api/run/gemini', { prompt: document.getElementById('directPrompt').value });
+    box.textContent = r.text || JSON.stringify(r, null, 2);
+  });
+
+  async function refreshFeed() {
+    try {
+      var artifacts = await (await fetch('/api/artifacts')).json();
+      document.getElementById('artifactsList').innerHTML = artifacts.files.length
+        ? artifacts.files.map(function (f) { return '<div class="item"><span class="path">' + f.name + '</span><span class="meta">' + fmtBytes(f.sizeBytes) + ' · ' + fmtDate(f.mtimeMs) + '</span></div>'; }).join('')
+        : '<div class="item">No artifacts yet.</div>';
+    } catch (e) { document.getElementById('artifactsList').innerHTML = '<div class="item">Runner not reachable.</div>'; }
+
+    try {
+      var reviews = await (await fetch('/api/reviews')).json();
+      document.getElementById('reviewsList').innerHTML = reviews.runs.length
+        ? reviews.runs.map(function (r) {
+            var cls = r.criticalIssuesRemaining === 0 ? 'crit-0' : 'crit-pos';
+            return '<div class="item"><span class="path">' + r.runId + '</span><span class="meta"><span class="badge">' + r.mode + '</span> <span class="' + cls + '">crit:' + r.criticalIssuesRemaining + '</span></span></div>';
+          }).join('')
+        : '<div class="item">No review runs yet.</div>';
+    } catch (e) { document.getElementById('reviewsList').innerHTML = '<div class="item">Runner not reachable.</div>'; }
+  }
+  document.getElementById('refreshFeedBtn').addEventListener('click', refreshFeed);
+  refreshFeed();
+  setInterval(refreshFeed, 8000);
+
+  // Section 3: live SSE stream
+  var logEl = document.getElementById('log');
+  function appendLogLine(line) {
+    logEl.textContent += line + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  try {
+    var es = new EventSource('/api/stream');
+    es.onopen = function () { setStatus(true); };
+    es.onerror = function () { setStatus(false); };
+    es.onmessage = function (e) { appendLogLine(e.data); };
+  } catch (e) { appendLogLine('SSE unsupported: ' + e.message); }
+
+  function setStatus(up) {
+    document.getElementById('statusDot').className = 'dot' + (up ? ' up' : '');
+    document.getElementById('statusText').textContent = up ? 'runner connected · 127.0.0.1:4004' : 'runner unreachable';
+  }
+
+  // Prime the log with existing status/tail
+  fetch('/api/status').then(function (r) { return r.json(); }).then(function (s) {
+    setStatus(true);
+    (s.recentLog || []).forEach(appendLogLine);
+  }).catch(function () { setStatus(false); });
+})();
+</script>
+</body>
+</html>
