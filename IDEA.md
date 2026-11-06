@@ -81,7 +81,7 @@ _RougeXHunter_ is a high-skill, lore-accurate _Hunter x Hunter_ Action-RPG for R
             
         4. **Bypassed Fundamentals (15%)**: Permanent -15% efficiency penalty to all non-innate Nen categories.
             
-        5. **Fatal Overload (5%)**: Instant aura overload and Soul Node wipe.
+        5. **Fatal Overload (5%)**: Instant aura overload: lose one Soul Node and die. On your last Soul Node, this wipes the character.
             
     - Debug feature: Set `AUTO_AWAKEN_DEBUG = true` in `Constants.luau` for instant awakening during testing.
         
