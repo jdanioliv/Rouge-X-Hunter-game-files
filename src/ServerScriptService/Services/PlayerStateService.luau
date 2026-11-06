@@ -75,6 +75,7 @@ local function newState(): Types.PlayerState
 		combatTagEndsAt = 0,
 
 		isDowned = false,
+		nextDownedHealAt = 0,
 		isDead = false,
 
 		lastAttackAt = 0,
@@ -543,6 +544,7 @@ function PlayerStateService.EnterDownedState(player: Player)
 		return
 	end
 	state.isDowned = true
+	state.nextDownedHealAt = os.clock() + Constants.DOWNED_REGEN_INTERVAL
 	state.isBlocking = false
 	state.isParrying = false
 	state.auraState = "None"
@@ -766,14 +768,23 @@ local function stepPlayer(player: Player, state, deltaTime: number)
 		end
 	end
 
-	-- Downed recovery. A body killed by a Grip stays downed until it respawns, and
-	-- the alive check keeps it from getting back up.
-	if state.isDowned and PlayerStateService.IsCharacterAlive(player) then
-		local regenPerSecond = state.maxHp * Constants.DOWNED_REGEN_FRACTION / Constants.DOWNED_REGEN_INTERVAL
-		state.hp = math.min(state.maxHp, state.hp + regenPerSecond * deltaTime)
-		if state.hp >= state.maxHp * Constants.DOWNED_RECOVER_HP_FRACTION then
-			recoverFromDowned(player, state)
+	-- A body killed by a Grip stays downed until it respawns, and the alive check keeps
+	-- it from getting back up or healing.
+	if not PlayerStateService.IsCharacterAlive(player) then
+		return
+	end
+
+	if state.isDowned then
+		-- Downed recovery heals in steps. The small margin stops rounding from adding a fifth heal.
+		if now >= state.nextDownedHealAt then
+			state.nextDownedHealAt += Constants.DOWNED_REGEN_INTERVAL
+			state.hp = math.min(state.maxHp, state.hp + state.maxHp * Constants.DOWNED_REGEN_FRACTION)
+			if state.hp >= state.maxHp * Constants.DOWNED_RECOVER_HP_FRACTION - 0.001 then
+				recoverFromDowned(player, state)
+			end
 		end
+	elseif state.hp < state.maxHp and now >= state.combatTagEndsAt then
+		state.hp = math.min(state.maxHp, state.hp + state.maxHp * Constants.NORMAL_REGEN_FRACTION_PER_SECOND * deltaTime)
 	end
 end
 

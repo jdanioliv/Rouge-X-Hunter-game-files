@@ -8,9 +8,12 @@ local Constants = {
 	STARTING_SOUL_NODES = 2, -- GDD section 2: characters start with 2 Soul Nodes
 	-- Downed recovery: a knocked-out player regenerates and gets back up on their own.
 	-- A Grip while they are down is what costs a Soul Node.
-	DOWNED_REGEN_FRACTION = 0.08, -- share of max HP regained per interval (owner's range: 7-10%)
-	DOWNED_REGEN_INTERVAL = 2, -- seconds per interval
-	DOWNED_RECOVER_HP_FRACTION = 0.3, -- share of max HP at which they get back up
+	-- Owner's numbers: a heal every 1.5 s, up at 35%, about 6 s down. That is 4 heals of 8.75%.
+	DOWNED_REGEN_FRACTION = 0.0875, -- share of max HP regained per heal (owner's range: 7-10%)
+	DOWNED_REGEN_INTERVAL = 1.5, -- seconds between heals
+	DOWNED_RECOVER_HP_FRACTION = 0.35, -- share of max HP at which they get back up
+	-- Normal regen runs only outside combat, so it starts when the combat tag ends.
+	NORMAL_REGEN_FRACTION_PER_SECOND = 0.025, -- share of max HP per second (owner's range: 2.5-5%)
 
 	-- Posture / balance meter
 	MAX_POSTURE = 100,

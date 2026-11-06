@@ -114,6 +114,7 @@ export type PlayerState = {
 	combatTagEndsAt: number,
 
 	isDowned: boolean,
+	nextDownedHealAt: number,
 	isDead: boolean, -- killed by a Soul Node loss and waiting to respawn
 
 	lastAttackAt: number,
