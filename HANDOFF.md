@@ -1,6 +1,6 @@
 # RougeXHunter: traspaso de trabajo
 
-Todo lo hecho y documentado hasta el 2026-11-05, y cómo seguir desde cualquier sitio. Tiene dos lectores: el dueño del proyecto, desde el móvil o en clase, y Claude, al empezar una sesión nueva sin contexto.
+Todo lo hecho y documentado hasta el 2026-11-06, y cómo seguir desde cualquier sitio. Tiene dos lectores: el dueño del proyecto, desde el móvil o en clase, y Claude, al empezar una sesión nueva sin contexto.
 
 **Claude:** este archivo sustituye a la memoria local, que no existe en una sesión en la nube. Léelo entero antes de actuar. En la nube, si choca con las secciones 5, 6 o 7 de `CLAUDE.md`, manda este archivo.
 
@@ -37,7 +37,7 @@ Todo lo hecho y documentado hasta el 2026-11-05, y cómo seguir desde cualquier 
 
 ## Reglas del dueño
 - **La web está en pausa.** No la empieces hasta que el dueño lo pida expresamente en esa sesión. "Sigue con esto" nunca basta. Pregúntale.
-- **No cambies el juego sin que lo pida.** Quiere que el código funcione bien, pero dijo que primero va la documentación. "Sigue con esto" solo basta si responde a una propuesta concreta tuya en esa misma sesión.
+- **El trabajo en el juego ya empezó.** El 2026-11-06 pidió arreglar cuanto antes el código contradictorio. Los arreglos siguen en una rama. Para funciones nuevas, "sigue con esto" solo basta si responde a una propuesta concreta tuya en esa misma sesión.
 - **Feedback constante.** Pidió crítica honesta en cada sesión: "the more feedback the better". Añádela a `Feedback/Project-Feedback.md` y da lo más importante en tu último mensaje, sin suavizarla.
 - **El GDD queda para casa.** Pidió hablar de él "once im home".
   - En la nube, supón que está en clase hasta que diga lo contrario.
@@ -65,7 +65,7 @@ Ninguna se fusiona hasta pasar el pipeline en su PC y probarla en Studio. El com
 
 | Rama | Qué cambia | Modo del pipeline | Probada en Studio |
 |---|---|---|---|
-| Ninguna todavía | | | |
+| `claude/2026-11-05-fix-contradictions` | Bugs de personajes y datos, QTE juzgado por el servidor, `F` pulsada y mantenida, recuperación al caer | `dual-debug`, sin ejecutar: `claude` no está en el PATH | No. Tampoco verificada con un comprobador de tipos |
 
 ## Los tres repos
 | Repo | Contiene | Estado |
@@ -94,7 +94,11 @@ Los tres parecen privados. **Fuera de los repos, a propósito:** `.env` con las 
 **Cuarta sesión: seguir desde la nube**
 - El dueño creó el entorno **Rouge X Hunter**. Añadimos este archivo, `scripts/cloud_bootstrap.sh` y `scripts/push_docs_to_main.sh`.
 
-**No se ha cambiado** ninguna línea de `src/` en todo esto, ni se ha empezado la web.
+**Quinta sesión: arreglos del juego**
+- El dueño pidió empezar con el código. Arreglamos en una rama sin fusionar los bugs conocidos y las reglas que el código incumplía, con sus decisiones sobre `F` y sobre caer. Un revisor independiente leyó el cambio. Nada se ha ejecutado en Studio.
+- El dueño pidió abandonar la prueba en la nube.
+
+**`main` sigue sin cambios en `src/`,** y la web sigue sin empezar.
 
 ## Mapa de la documentación
 Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlaces abren en GitHub.
@@ -130,6 +134,12 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 | La web tiene repo propio, y está en pausa hasta nueva orden | 2026-11-05 |
 | El builder debe sentirse como [deepwoken.co/builder](https://deepwoken.co/builder) | 2026-11-05 |
 | Otros animes: se decidirá más adelante | 2026-11-04 |
+| Empezar a arreglar el código del juego | 2026-11-06 |
+| Pulsar `F` hace parry y mantenerla bloquea, como en Deepwoken | 2026-11-06 |
+| Dos vidas al empezar. Al caer se regenera más rápido de lo normal, del 5% al 7-10% del total, hasta cierta cantidad | 2026-11-06 |
+| Un jugador dormido pega menos que nadie (x0,7) | 2026-11-06 |
+| Un Hatsu bloqueado o con parry no cuenta como fallo para `backfire` | 2026-11-06 |
+| La ventana de parry se juzga en el juego, y se puede ajustar | 2026-11-06 |
 
 **Preguntas abiertas para el dueño**
 1. **Para cuando esté en casa:** ¿dónde está el GDD? Debería mirar en su pendrive.
@@ -139,7 +149,9 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 5. ¿`prototype_scale.rbxl`, en sus Documentos, tiene que ver con este juego?
 6. ¿El builder es más importante de lo que asumí? Lo puse después del quiz y las sugerencias porque depende de un catálogo de habilidades que no existe.
 7. ¿Dónde alojar la web?
-8. ¿Arreglo ya los bugs de abajo? Se lo pregunté dos veces y sigue sin respuesta.
+8. ¿Fatal Overload quita una vida, como hace el código, o borra el personaje, como dice `Game_concept.md`? Le di la lista de consecuencias para que decida.
+9. ¿Cada cuánto cura el jugador caído, y con cuánta vida se levanta? Puse 8% cada 2 segundos y 30%, que son suposiciones mías.
+10. ¿Debe existir regeneración normal, y solo fuera de combate? Hoy el código no tiene ninguna.
 
 ## Lo más importante que encontramos
 - **El árbol de habilidades no afecta al juego.** Comprar un nodo gasta memoria y sube un contador que se guarda y la interfaz muestra, pero ninguna lógica de juego lo usa: `GetLearnedNodes` no tiene llamadas (`NenAffinityService.luau:123`). Tampoco hay habilidades con nombre. Es la mayor carencia de diseño, y bloquea el builder.
@@ -150,8 +162,13 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 - **La auditoría nocturna nunca ha revisado nada.** Solo mira archivos `.luau` cambiados en las últimas 24 horas (`nightly_code_audit.js:19-21`), y sus 40 ejecuciones registradas no encontraron ninguno.
 - **Lo mejor del proyecto:** el presupuesto de Seiyaku, la arquitectura con el servidor como autoridad, y los dos caminos de despertar.
 
-## Bugs conocidos, sin arreglar
-Encontrados leyendo el código, sin reproducirlos jugando. Los archivos están en `src/ServerScriptService/Services/`, y las líneas pueden moverse.
+## Bugs conocidos
+Encontrados leyendo el código, sin reproducirlos jugando. Los archivos están en `src/ServerScriptService/Services/`, y las líneas pueden moverse. **Los de esta lista están arreglados en `claude/2026-11-05-fix-contradictions`, sin fusionar ni probar. Las citas describen `main`.**
+
+**Sigue abierto, también en la rama:**
+- Resetear (Esc → Reset) estando caído parece evitar el Grip. Sin probar.
+- Salir estando caído evita el Grip, porque el castigo por desconectarse en combate no existe aún.
+- Los datos de depuración de Studio pueden llegar al almacén real.
 
 **Ponen en riesgo personajes o datos:**
 1. **Un desangrado borra un personaje de dos nodos.** `LoseSoulNode` no limpia `isDowned`, así que se repite en el siguiente Heartbeat (`PlayerStateService.luau:699-701`, `:520-545`).
@@ -178,14 +195,16 @@ Detalle y fuentes en `Reference/Monetization.md`. Esto es consejo técnico, no l
 ## Qué sigue
 Nada está en marcha. Esperamos la decisión del dueño.
 
+**Lo siguiente es que el dueño pruebe la rama en Studio:** pulsar y mantener `F`, caer y levantarse, un Grip y el QTE de despertar. Después decide si se fusiona.
+
 **Su orden:**
 1. **Documentación.** La primera pasada quedó terminada el 2026-11-05, aunque puede pedir más.
 2. **La web,** que llamó "the most important thing". Dijo: "when i get to class i will start with the webapp just for you to have a foundation to work off of", y también "wait till further instructed". Así que espera a que lo pida.
-3. **Cambios del juego,** que dejó para "later": más lógica, modelos y animaciones, zonas de carga, interfaz y bucle de juego.
+3. **Cambios del juego,** que dejó para "later" y empezó el 2026-11-06 por los arreglos. Quedan más lógica, modelos y animaciones, zonas de carga, interfaz y bucle de juego.
 
 **Cuando toque el juego, recomiendo este orden:**
-1. Arreglar los bugs graves, en una rama.
-2. Fijar las herramientas: `aftman.toml`, verificador de tipos y linter.
+1. Probar en Studio los arreglos de la rama y fusionarlos.
+2. Añadir verificador de tipos y linter. `aftman.toml` con Rojo ya está en la rama.
 3. Crear una arena de prueba por script, para poder jugar con una copia limpia.
 4. Diseñar el catálogo de habilidades con el dueño.
 
@@ -210,6 +229,6 @@ Fuera de Windows, en los comandos de `Systems/Knowledge-Graph` cambia `Scripts/g
 
 ## Cuidado con esto
 - **Citas al código:** si una nota y el código no coinciden, manda el código. Corrige la nota en esa misma sesión.
-- **Rojo:** la versión 7.7.0 está instalada en el PC del dueño mediante Aftman, pero hoy se niega a ejecutarse, porque ningún `aftman.toml` la lista. Hay que añadirla antes de usar `rojo serve`.
-- **Sin probar en la nube:** este archivo y los dos scripts solo se han probado con copias simuladas. No se sabe en qué carpeta arranca una sesión con varios repos, dónde clona el segundo, ni si un repo se puede añadir a una sesión ya abierta. **La primera sesión real debe anotar aquí la carpeta inicial, la ruta de cada repo, la rama inicial y si pudo subir al vault.** Si no ves este archivo, busca el repo del juego con `ls ..`.
+- **Rojo:** la versión 7.7.0 está instalada en el PC del dueño mediante Aftman. En `main` se niega a ejecutarse, porque no hay `aftman.toml`. En la rama de arreglos funciona.
+- **Sin probar en la nube:** el dueño pidió abandonar la prueba el 2026-11-06. Este archivo y los dos scripts solo se han probado con copias simuladas. No se sabe en qué carpeta arranca una sesión con varios repos, dónde clona el segundo, ni si un repo se puede añadir a una sesión ya abierta. **La primera sesión real debe anotar aquí la carpeta inicial, la ruta de cada repo, la rama inicial y si pudo subir al vault.** Si no ves este archivo, busca el repo del juego con `ls ..`.
 - **En el PC del dueño:** `claude` no estaba en el PATH del shell de la sesión anterior, y la limpieza semanal falla por eso, así que el pipeline de revisión puede fallar también allí.

@@ -12,6 +12,7 @@ layer can be added later with graphify's own /graphify skill.
 import json
 import shutil
 import subprocess
+import re
 import sys
 from pathlib import Path
 
@@ -48,6 +49,17 @@ def collect():
     return code, notes
 
 
+def flatten_copied_links(wiki):
+    # A node label can be a note heading that holds a relative link. Copied into a wiki page, that
+    # link points somewhere else, so keep its text and drop the link when the target does not exist.
+    link = re.compile(r"\[([^\]]+)\]\((\.\./[^)#]+)(#[^)]*)?\)")
+    for page in wiki.glob("*.md"):
+        text = page.read_text(encoding="utf-8")
+        fixed = link.sub(lambda m: m.group(0) if (page.parent / m.group(2)).exists() else m.group(1), text)
+        if fixed != text:
+            page.write_text(fixed, encoding="utf-8")
+
+
 def commit():
     r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO, capture_output=True, text=True)
     return r.stdout.strip() if r.returncode == 0 else None
@@ -76,6 +88,7 @@ def main():
     to_json(G, communities, str(OUT / "graph.json"), force=True, built_at_commit=head, community_labels=labels)
     to_html(G, communities, str(OUT / "graph.html"), community_labels=labels)
     articles = to_wiki(G, communities, OUT / "wiki", community_labels=labels, cohesion=cohesion, god_nodes_data=gods)
+    flatten_copied_links(OUT / "wiki")
 
     words = sum(len(p.read_text(encoding="utf-8", errors="ignore").split()) for p in code + notes)
     detection = {
