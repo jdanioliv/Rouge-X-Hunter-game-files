@@ -119,7 +119,7 @@ local function sweepHitbox(attackerCharacter: Model, aoeExpanded: boolean): { Mo
 
 	local hitboxSize = Constants.ATTACK_HITBOX_SIZE
 	if aoeExpanded then
-		hitboxSize = hitboxSize * 2
+		hitboxSize = hitboxSize * Constants.HATSU_AOE_HITBOX_MULTIPLIER
 	end
 
 	local overlapParams = OverlapParams.new()
@@ -176,16 +176,19 @@ local function computeHatsuDamage(player: Player, build): number
 	if affinity then
 		local categoryMultiplier = NenAffinityService.GetEffectMultiplier(player, affinity.primary)
 		if categoryMultiplier > 0 then
-			damage *= 0.6 + 0.4 * categoryMultiplier
+			local blend = Constants.HATSU_AFFINITY_BLEND
+			damage *= (1 - blend) + blend * categoryMultiplier
 		end
 	end
 
 	return damage
 end
 
+-- Returns whether the ability connected with this target. A parry or block counts:
+-- the caster aimed true, so that is not a miss for the backfire condition.
 local function resolveHitOnPlayer(attacker: Player, victim: Player, build, damage: number): boolean
 	local victimState = PlayerStateService.GetState(victim)
-	if not victimState or victimState.isDowned then
+	if not victimState or victimState.isDowned or not PlayerStateService.IsCharacterAlive(victim) then
 		return false
 	end
 
@@ -196,26 +199,23 @@ local function resolveHitOnPlayer(attacker: Player, victim: Player, build, damag
 
 	-- Parry still works unless guard_break bypasses the entire defensive layer.
 	if not guardBreak and PlayerStateService.IsParryActive(victim, Constants.NETWORK_TOLERANCE) then
-		local attackerState = PlayerStateService.GetState(attacker)
-		if attackerState then
-			PlayerStateService.ApplyPostureDamage(attacker, Constants.PARRY_POSTURE_DAMAGE_TO_ATTACKER)
-			attackerState.attackLockedUntil = os.clock() + Constants.PARRY_FRAME_TRAP_SECONDS
-		end
+		PlayerStateService.ApplyPostureDamage(attacker, Constants.PARRY_POSTURE_DAMAGE_TO_ATTACKER)
+		PlayerStateService.ExtendAttackLockout(attacker, Constants.PARRY_FRAME_TRAP_SECONDS)
 		sendFeedback(victim, "ParrySuccess")
 		sendFeedback(attacker, "GotParried")
 		broadcast(attacker, "Stagger")
-		return false
+		return true
 	end
 
 	-- Block: guard_break skips this entirely and deals full raw damage.
 	if not guardBreak and victimState.isBlocking and not victimState.isGuardBroken then
 		PlayerStateService.ApplyPostureDamage(victim, Constants.BLOCK_POSTURE_DAMAGE)
 		sendFeedback(victim, "Blocked")
-		return false
+		return true
 	end
 
 	if victimState.isGuardBroken then
-		damage *= 1.5
+		damage *= Constants.GUARD_BROKEN_DAMAGE_MULTIPLIER
 	end
 
 	local dealt = PlayerStateService.ApplyDamage(victim, damage, attacker)
@@ -262,7 +262,7 @@ end
 local function executeHatsu(player: Player)
 	local state = PlayerStateService.GetState(player)
 	local build = PlayerStateService.GetSeiyakuBuild(player)
-	if not state or not build or not PlayerStateService.CanAct(player) then
+	if not state or not build or not PlayerStateService.CanAttack(player) then
 		return
 	end
 
@@ -272,17 +272,18 @@ local function executeHatsu(player: Player)
 		return
 	end
 
+	-- Checked before the aura is spent, so a missing character costs nothing.
+	local character = player.Character
+	if not character then
+		return
+	end
+
 	local auraCost = getAuraCost(player)
 	if not PlayerStateService.TrySpendAura(player, auraCost) then
 		return
 	end
 
 	-- Pick the first valid player target in range for target_restriction checks.
-	local character = player.Character
-	if not character then
-		return
-	end
-
 	local aoeExpanded = getModifier(build, "aoe_expansion") ~= nil
 	local victims = sweepHitbox(character, aoeExpanded)
 
@@ -298,13 +299,13 @@ local function executeHatsu(player: Player)
 	local conditionsOk, reason = verifyConditions(player, build, primaryTarget)
 	if not conditionsOk then
 		-- Refund aura when conditions fail at execution time.
-		state.aura = math.min(state.maxAura, state.aura + auraCost)
+		PlayerStateService.RefundAura(player, auraCost)
 		sendFeedback(player, "TookHit") -- reuse flash as a generic "failed" ping
 		warn(`[HatsuService] {player.Name} Hatsu blocked: {reason}`)
 		return
 	end
 
-	state.lastHatsuAt = now
+	PlayerStateService.SetLastHatsuAt(player, now)
 	broadcast(player, "Attack") -- reuse attack broadcast for animation hook
 
 	local damage = computeHatsuDamage(player, build)
@@ -330,8 +331,7 @@ local function executeHatsu(player: Player)
 	-- backfire condition: missing deals 25% of the ability's damage to the caster.
 	if hasCondition(build, "backfire") and hitCount == 0 then
 		local selfDamage = damage * Constants.HATSU_BACKFIRE_FRACTION
-		PlayerStateService.ApplyDamage(player, selfDamage)
-		sendFeedback(player, "TookHit", selfDamage)
+		PlayerStateService.ApplyDamage(player, selfDamage) -- also sends the caster's TookHit
 	end
 
 	applyPostCast(player, build)
@@ -339,7 +339,7 @@ end
 
 local function preflight(player: Player, build): boolean
 	local state = PlayerStateService.GetState(player)
-	if not state or not PlayerStateService.CanAct(player) then
+	if not state or not PlayerStateService.CanAttack(player) then
 		return false
 	end
 	local now = os.clock()

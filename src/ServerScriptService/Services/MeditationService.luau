@@ -35,8 +35,8 @@ local PlayerStateService = require(script.Parent.PlayerStateService)
 
 local MeditationService = {}
 
--- Fired when focus reaches MAX_PROGRESS; WaterDivinationService and future
--- tutorial prompts hook this instead of polling.
+-- Fired when focus reaches MAX_PROGRESS. Nothing connects yet: it is for future
+-- tutorial prompts. WaterDivinationService reads progress on demand instead.
 MeditationService.FocusCompleted = Signal.new() -- (player)
 MeditationService.MeditationEnded = Signal.new() -- (player, reason, focusProgress)
 
@@ -120,8 +120,8 @@ local function releaseMovement(player: Player)
 	end
 end
 
--- Drives the aura VFX layer for every nearby client without extra networking,
--- mirroring how PlayerStateService publishes AuraState.
+-- Published for every nearby client, mirroring how PlayerStateService publishes
+-- AuraState. No client reads it yet.
 local function setMeditatingAttribute(player: Player, meditating: boolean)
 	local character = player.Character
 	if character then
@@ -307,8 +307,8 @@ function MeditationService.GetProgress(player: Player): number
 	return PlayerStateService.GetMeditationProgress(player)
 end
 
--- Ends an active session from outside (used before the divination ritual and
--- by any future cutscene/teleport system). Safe to call when idle.
+-- Ends an active session from outside, for any future cutscene/teleport system.
+-- Safe to call when idle.
 function MeditationService.StopMeditation(player: Player, reason: string?)
 	endSession(player, reason or "Cancelled")
 end
@@ -416,8 +416,8 @@ function MeditationService.Init()
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
-		-- Flush before the state is torn down so partial focus is saved by
-		-- DataPersistenceService's PlayerRemoving handler.
+		-- This runs after the final save, so it is cleanup only. Partial focus is
+		-- already saved, because every accepted tick commits it to PlayerState.
 		endSession(player, "Left")
 		restorePoints[player] = nil
 		lastKnownHealth[player] = nil

@@ -191,7 +191,7 @@ local function refresh()
 	end
 
 	if not nenAwakened then
-		centerLabel.Text = "NEN DORMANT\nSeek a Forced Awakening"
+		centerLabel.Text = "NEN DORMANT\nMeditate to awaken"
 	end
 end
 

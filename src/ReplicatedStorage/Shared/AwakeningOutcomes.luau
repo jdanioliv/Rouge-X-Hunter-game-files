@@ -1,7 +1,8 @@
 --!strict
 -- The Forced Nen Awakening outcome wheel (GDD section 3). Pure data + a
 -- weighted roll, shared so the client can render the wheel cinematic with the
--- same metadata the server rolls against.
+-- same metadata the server rolls against. Also holds the QTE marker formula, so
+-- the bar the client draws and the check the server runs cannot disagree.
 
 local AwakeningOutcomes = {}
 
@@ -55,6 +56,17 @@ function AwakeningOutcomes.Roll(random: Random): string
 		end
 	end
 	return "Clean"
+end
+
+-- Marker position on the QTE bar (0..1) at this many seconds into the QTE.
+-- The oscillation speeds up as the collapse timer runs down.
+function AwakeningOutcomes.QTEMarkerPosition(elapsed: number): number
+	local frequency = 6 + elapsed * 1.5
+	return 0.5 + 0.45 * math.sin(elapsed * frequency)
+end
+
+function AwakeningOutcomes.IsQTEHit(elapsed: number, zoneHalfWidth: number): boolean
+	return math.abs(AwakeningOutcomes.QTEMarkerPosition(elapsed) - 0.5) <= zoneHalfWidth
 end
 
 return AwakeningOutcomes

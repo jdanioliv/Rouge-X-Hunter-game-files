@@ -22,13 +22,20 @@ local PlayerStateService = {}
 
 -- Signals other services (and future permadeath/Depths systems) hook into.
 PlayerStateService.PlayerDowned = Signal.new() -- (player)
+PlayerStateService.PlayerRecovered = Signal.new() -- (player)
 PlayerStateService.GuardBroken = Signal.new() -- (player)
 PlayerStateService.SoulNodeLost = Signal.new() -- (player, remainingNodes, reason)
 PlayerStateService.CharacterWiped = Signal.new() -- (player)
 PlayerStateService.CombatLoggerDetected = Signal.new() -- (player, remainingTagSeconds)
 PlayerStateService.PlayerDamaged = Signal.new() -- (player, finalDamage, attacker?)
+-- Fired by DataPersistenceService just before a leaving player's final save, so
+-- pending consequences can be applied in time to be written.
+PlayerStateService.PlayerLeaving = Signal.new() -- (player)
 
 local states: { [Player]: Types.PlayerState } = {}
+
+-- Movement values captured on going down, restored on getting back up.
+local downedRestore: { [Player]: { walkSpeed: number, jumpPower: number } } = {}
 
 local snapshotRemote = Remotes.Get("StateSnapshot")
 local feedbackRemote = Remotes.Get("CombatFeedback")
@@ -68,7 +75,7 @@ local function newState(): Types.PlayerState
 		combatTagEndsAt = 0,
 
 		isDowned = false,
-		downedEndsAt = 0,
+		isDead = false,
 
 		lastAttackAt = 0,
 		attackLockedUntil = 0,
@@ -115,7 +122,7 @@ local function resetVolatile(state)
 	state.auraState = "None"
 	state.ryuRatio = { offense = 0.5, defense = 0.5 }
 	state.isDowned = false
-	state.downedEndsAt = 0
+	state.isDead = false
 	state.isMeditating = false -- accumulated meditationProgress is progression and survives
 	state.attackLockedUntil = 0
 	state.lastHatsuAt = 0
@@ -149,12 +156,36 @@ function PlayerStateService.IsParryActive(player: Player, tolerance: number?): b
 	return (os.clock() - state.parryStartedAt) <= window
 end
 
+-- False from the moment a Soul Node loss kills the character until it respawns.
+-- HP and Humanoid.Health are separate: a downed player is still alive here.
+function PlayerStateService.IsCharacterAlive(player: Player): boolean
+	-- The flag comes first: a default Health script may heal a dead Humanoid above
+	-- 0 before it respawns, so Health alone cannot prove a body is alive.
+	local state = states[player]
+	if state and state.isDead then
+		return false
+	end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	return humanoid ~= nil and humanoid.Health > 0
+end
+
 function PlayerStateService.CanAct(player: Player): boolean
 	local state = states[player]
 	if not state then
 		return false
 	end
-	return not state.isDowned and not state.isGuardBroken
+	return not state.isDowned and not state.isGuardBroken and PlayerStateService.IsCharacterAlive(player)
+end
+
+-- The shared gate for melee and Hatsu: a parry frame-trap or stun extension stops
+-- both, and so does holding a defensive stance.
+function PlayerStateService.CanAttack(player: Player): boolean
+	if not PlayerStateService.CanAct(player) then
+		return false
+	end
+	local state = states[player]
+	return os.clock() >= state.attackLockedUntil and not state.isBlocking and not state.isParrying
 end
 
 --------------------------------------------------------------------------------
@@ -192,7 +223,9 @@ function PlayerStateService.SetBlocking(player: Player, blocking: boolean): bool
 	if not state then
 		return false
 	end
-	if blocking and (state.isDowned or state.isGuardBroken or state.isParrying) then
+	-- A block may begin during a parry: holding F runs straight from one into the
+	-- other, and hits are checked against the parry first.
+	if blocking and (state.isDowned or state.isGuardBroken) then
 		return false
 	end
 	state.isBlocking = blocking
@@ -279,7 +312,7 @@ function PlayerStateService.ApplyMutilation(player: Player)
 end
 
 -- Bypassed Fundamentals: efficiency/Hatsu-cost penalties are read from this
--- flag by NenAffinityService and the future Hatsu system.
+-- flag by NenAffinityService and HatsuService.
 function PlayerStateService.SetBypassedPenalty(player: Player)
 	local state = states[player]
 	if state then
@@ -382,6 +415,13 @@ function PlayerStateService.TrySpendAura(player: Player, amount: number): boolea
 	return true
 end
 
+function PlayerStateService.RefundAura(player: Player, amount: number)
+	local state = states[player]
+	if state then
+		state.aura = math.min(state.maxAura, state.aura + amount)
+	end
+end
+
 function PlayerStateService.SealTen(player: Player, duration: number)
 	local state = states[player]
 	if not state then
@@ -403,6 +443,13 @@ function PlayerStateService.SetLastHatsuAt(player: Player, timestamp: number)
 	local state = states[player]
 	if state then
 		state.lastHatsuAt = timestamp
+	end
+end
+
+function PlayerStateService.SetLastAttackAt(player: Player, timestamp: number)
+	local state = states[player]
+	if state then
+		state.lastAttackAt = timestamp
 	end
 end
 
@@ -496,7 +543,6 @@ function PlayerStateService.EnterDownedState(player: Player)
 		return
 	end
 	state.isDowned = true
-	state.downedEndsAt = os.clock() + Constants.DOWNED_BLEEDOUT_SECONDS
 	state.isBlocking = false
 	state.isParrying = false
 	state.auraState = "None"
@@ -506,6 +552,7 @@ function PlayerStateService.EnterDownedState(player: Player)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
+		downedRestore[player] = { walkSpeed = humanoid.WalkSpeed, jumpPower = humanoid.JumpPower }
 		humanoid.WalkSpeed = 0
 		humanoid.JumpPower = 0
 		humanoid.PlatformStand = true
@@ -515,7 +562,26 @@ function PlayerStateService.EnterDownedState(player: Player)
 	sendFeedback(player, "Downed")
 end
 
--- Strips a soul node (Grip finisher, bleed-out, awakening failure, or future
+local function recoverFromDowned(player: Player, state)
+	state.isDowned = false
+	syncAttributes(player, state)
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local restore = downedRestore[player]
+	downedRestore[player] = nil
+	if humanoid then
+		humanoid.PlatformStand = false
+		if restore then
+			humanoid.WalkSpeed = restore.walkSpeed
+			humanoid.JumpPower = restore.jumpPower
+		end
+	end
+
+	PlayerStateService.PlayerRecovered:Fire(player)
+end
+
+-- Strips a soul node (Grip finisher, awakening failure, or future
 -- disconnect payload). Kills the character; at 0 nodes triggers the wipe path.
 function PlayerStateService.LoseSoulNode(player: Player, reason: string)
 	local state = states[player]
@@ -531,6 +597,7 @@ function PlayerStateService.LoseSoulNode(player: Player, reason: string)
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid.Health = 0
+		state.isDead = true
 	end
 
 	if state.soulNodes <= 0 then
@@ -539,7 +606,9 @@ function PlayerStateService.LoseSoulNode(player: Player, reason: string)
 		-- DataPersistenceService subscribes to CharacterWiped and saves the
 		-- reset immediately so a wipe cannot be escaped by crashing the server.
 		warn(`[PlayerStateService] {player.Name} lost their final Soul Node - character wiped`)
-		states[player] = newState()
+		local freshState = newState()
+		freshState.isDead = state.isDead -- this body is still dead until it respawns
+		states[player] = freshState
 		PlayerStateService.CharacterWiped:Fire(player)
 	end
 end
@@ -658,8 +727,9 @@ end
 local function stepPlayer(player: Player, state, deltaTime: number)
 	local now = os.clock()
 
-	-- Expire the parry window.
-	if state.isParrying and (now - state.parryStartedAt) > Constants.PARRY_WINDOW_SECONDS then
+	-- Expire the parry window. Hits are judged with NETWORK_TOLERANCE on top of it
+	-- (IsParryActive), so the flag has to outlive the bare window by that much.
+	if state.isParrying and (now - state.parryStartedAt) > (Constants.PARRY_WINDOW_SECONDS + Constants.NETWORK_TOLERANCE) then
 		state.isParrying = false
 	end
 
@@ -686,18 +756,24 @@ local function stepPlayer(player: Player, state, deltaTime: number)
 		end
 		state.aura = math.min(state.maxAura, state.aura + regen * deltaTime)
 	end
-	-- Aura exhausted: forcibly drop surging states back to Ten.
+	-- Aura exhausted: forcibly drop surging states back to Ten, or to None if a
+	-- ten_seal is still running.
 	if state.aura <= 0 then
 		state.aura = 0
 		if state.auraState == "Ren" or state.auraState == "Ken" then
-			state.auraState = "Ten"
+			state.auraState = if now < state.tenSealedUntil then "None" else "Ten"
 			syncAttributes(player, state)
 		end
 	end
 
-	-- Downed bleed-out.
-	if state.isDowned and now >= state.downedEndsAt then
-		PlayerStateService.LoseSoulNode(player, "bleedout")
+	-- Downed recovery. A body killed by a Grip stays downed until it respawns, and
+	-- the alive check keeps it from getting back up.
+	if state.isDowned and PlayerStateService.IsCharacterAlive(player) then
+		local regenPerSecond = state.maxHp * Constants.DOWNED_REGEN_FRACTION / Constants.DOWNED_REGEN_INTERVAL
+		state.hp = math.min(state.maxHp, state.hp + regenPerSecond * deltaTime)
+		if state.hp >= state.maxHp * Constants.DOWNED_RECOVER_HP_FRACTION then
+			recoverFromDowned(player, state)
+		end
 	end
 end
 
@@ -721,6 +797,7 @@ function PlayerStateService.Init()
 		end
 
 		player.CharacterAdded:Connect(function()
+			downedRestore[player] = nil
 			local currentState = states[player]
 			if currentState then
 				resetVolatile(currentState)
@@ -745,6 +822,7 @@ function PlayerStateService.Init()
 			PlayerStateService.CombatLoggerDetected:Fire(player, remaining)
 		end
 		states[player] = nil
+		downedRestore[player] = nil
 	end)
 
 	-- Aura RGB selection (foundation for the future character creation suite).

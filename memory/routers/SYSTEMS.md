@@ -10,7 +10,7 @@ this is a pointer index, not a copy.
 - `MeditationService.luau` — focus progression, server-side tick verification.
 - `WaterDivinationService.luau` — cup interactions, authoritative Nen affinity roll.
 - `NenAffinityService.luau` — Hexagon efficiency math, memory slot verification (`TryLearnSkillNode`).
-- `NenAwakeningService.luau` — awakening gate logic.
+- `NenAwakeningService.luau` — awakening gate logic; judges the QTE press by press and settles pending results when a player leaves.
 - `SeiyakuService.luau` — contract validation, dynamic condition checks.
 - `HatsuService.luau` — ability execution.
 

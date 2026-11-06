@@ -8,7 +8,11 @@
 -- Flow per player:
 --   join -> acquire session lock (retry, kick on failure) -> load profile ->
 --   hydrate PlayerStateService + NenAffinityService -> autosave loop ->
---   leave -> final save -> release lock.
+--   leave -> settle pending consequences -> final save -> release lock.
+--
+-- A server only writes a profile while it can show that it owns the lock. If the
+-- lock service is down, the player cannot join a live server, and a running
+-- session stops saving once its last confirmation is too old to rely on.
 --
 -- Init() must run BEFORE the other services in Main so this service's
 -- PlayerRemoving handler fires first, reading state before it is cleared.
@@ -38,6 +42,13 @@ local storesAvailable = false
 -- Players whose profile loaded successfully; only these are ever saved,
 -- so a failed load can never overwrite good data with defaults.
 local loaded: { [Player]: boolean } = {}
+-- Locks this server actually claimed. Only these are ever released, so a player
+-- kicked because another server owns the profile cannot delete that server's lock.
+local heldLocks: { [Player]: boolean } = {}
+local lockConfirmedAt: { [Player]: number } = {}
+local saveQueued: { [Player]: boolean } = {}
+-- Newest save started per player, so a retry cannot overwrite a later save.
+local saveSequence: { [Player]: number } = {}
 local warnedApiUnavailable = false
 
 local function warnApi(context: string, err: any)
@@ -55,8 +66,11 @@ end
 -- Session locks (MemoryStore)
 --------------------------------------------------------------------------------
 
--- Atomically claims the lock unless another live session holds it.
-local function tryClaimLock(key: string): boolean
+type LockResult = "Claimed" | "HeldElsewhere" | "Unavailable"
+
+-- Atomically claims the lock unless another live session holds it. A failed call
+-- proves nothing about who owns the profile, so it is reported as its own result.
+local function tryClaimLock(key: string): LockResult
 	local ok, result = pcall(function()
 		return lockMap:UpdateAsync(key, function(current)
 			if current == nil or current == sessionId then
@@ -67,27 +81,59 @@ local function tryClaimLock(key: string): boolean
 	end)
 	if not ok then
 		warnApi("Session lock", result)
-		-- Treat API failure as "no locking available" rather than blocking play.
-		return true
+		return "Unavailable"
 	end
-	return result ~= nil
+	return if result ~= nil then "Claimed" else "HeldElsewhere"
 end
 
-local function acquireLock(player: Player): boolean
-	local key = playerKey(player)
+local function claimLock(player: Player): LockResult
+	local result = tryClaimLock(playerKey(player))
+	if result == "Claimed" then
+		heldLocks[player] = true
+		lockConfirmedAt[player] = os.clock()
+	elseif result == "HeldElsewhere" then
+		heldLocks[player] = nil
+		lockConfirmedAt[player] = nil
+	end
+	return result
+end
+
+local function acquireLock(player: Player): LockResult
+	local result: LockResult = "Unavailable"
 	for _ = 1, Constants.SESSION_LOCK_RETRIES do
-		if tryClaimLock(key) then
-			return true
+		result = claimLock(player)
+		if result == "Claimed" then
+			return result
 		end
 		task.wait(Constants.SESSION_LOCK_RETRY_DELAY)
 	end
-	return false
+	return result
 end
 
 local function releaseLock(player: Player)
+	if not heldLocks[player] then
+		return
+	end
+	heldLocks[player] = nil
+	lockConfirmedAt[player] = nil
 	pcall(function()
-		lockMap:RemoveAsync(playerKey(player))
+		-- Read first: if the lock expired during an outage, another server may own it now.
+		local key = playerKey(player)
+		if lockMap:GetAsync(key) == sessionId then
+			lockMap:RemoveAsync(key)
+		end
 	end)
+end
+
+-- True when the last confirmation is recent enough that the TTL cannot have run
+-- out, otherwise asks the lock service again. Yields in that second case.
+local function stillOwnsLock(player: Player): boolean
+	local confirmedAt = lockConfirmedAt[player]
+	local safeAge = Constants.SESSION_LOCK_TTL - Constants.SESSION_LOCK_RENEW_INTERVAL
+	if confirmedAt and (os.clock() - confirmedAt) < safeAge then
+		return true
+	end
+	return claimLock(player) == "Claimed"
 end
 
 --------------------------------------------------------------------------------
@@ -107,18 +153,21 @@ local function buildProfile(player: Player)
 	return stateData
 end
 
-local function hydrate(player: Player, data)
+-- Returns false if the state never appeared, so the caller cannot mark as loaded
+-- a profile that was not applied and later save defaults over it.
+local function hydrate(player: Player, data): boolean
 	-- PlayerStateService creates state synchronously on PlayerAdded, but our
 	-- load runs async; wait briefly for the state to exist.
 	local deadline = os.clock() + 10
 	while not PlayerStateService.GetState(player) do
 		if os.clock() > deadline or not player.Parent then
-			return
+			return false
 		end
 		task.wait(0.1)
 	end
 	PlayerStateService.ApplyPersistedData(player, data)
 	NenAffinityService.ApplyPersistedData(player, data)
+	return true
 end
 
 --------------------------------------------------------------------------------
@@ -144,12 +193,26 @@ local function saveProfile(player: Player): boolean
 	if not loaded[player] then
 		return false
 	end
+	-- Built before anything yields: on leave, state is cleared by the next
+	-- PlayerRemoving handler as soon as this thread waits.
 	local profile = buildProfile(player)
 	if not profile then
 		return false
 	end
 
+	local sequence = (saveSequence[player] or 0) + 1
+	saveSequence[player] = sequence
+
+	if not stillOwnsLock(player) then
+		warn(`[DataPersistence] Skipped saving {player.Name}: this server cannot confirm it owns the profile`)
+		return false
+	end
+
 	for _ = 1, 2 do
+		-- A newer save holds newer data. Writing this one now could undo a wipe.
+		if saveSequence[player] ~= sequence then
+			return false
+		end
 		local ok, err = pcall(function()
 			dataStore:UpdateAsync(playerKey(player), function(_old)
 				return profile
@@ -161,6 +224,7 @@ local function saveProfile(player: Player): boolean
 		warnApi("Save", err)
 		task.wait(1)
 	end
+	warn(`[DataPersistence] Save failed for {player.Name}`)
 	return false
 end
 
@@ -180,6 +244,21 @@ function DataPersistenceService.SaveNow(player: Player): boolean
 	return saveProfile(player)
 end
 
+-- For changes that happen often, like skill purchases: saves once within
+-- SAVE_COALESCE_SECONDS, however many requests arrive. Does not yield.
+function DataPersistenceService.RequestSave(player: Player)
+	if saveQueued[player] or not loaded[player] then
+		return
+	end
+	saveQueued[player] = true
+	task.delay(Constants.SAVE_COALESCE_SECONDS, function()
+		saveQueued[player] = nil
+		if player.Parent and loaded[player] then
+			saveProfile(player)
+		end
+	end)
+end
+
 function DataPersistenceService.IsLoaded(player: Player): boolean
 	return loaded[player] == true
 end
@@ -194,8 +273,17 @@ local function onPlayerAdded(player: Player)
 			return
 		end
 
-		if not acquireLock(player) then
+		local lockResult = acquireLock(player)
+		if lockResult == "HeldElsewhere" and not RunService:IsStudio() then
 			player:Kick("Your data is still saving from a previous session. Please rejoin in a minute.")
+			return
+		elseif lockResult ~= "Claimed" then
+			-- Studio only reaches here with a lock left by a stopped test, or no API access.
+			if RunService:IsStudio() then
+				warn(`[DataPersistence] Continuing without saves for {player.Name} (Studio)`)
+			else
+				player:Kick("Our data service is unavailable right now. Please rejoin in a minute.")
+			end
 			return
 		end
 
@@ -210,8 +298,12 @@ local function onPlayerAdded(player: Player)
 			return
 		end
 
-		if data ~= nil then
-			hydrate(player, data)
+		if data ~= nil and not hydrate(player, data) then
+			releaseLock(player)
+			if player.Parent then
+				player:Kick("Your data failed to load. Please rejoin.")
+			end
+			return
 		end
 		if player.Parent then
 			loaded[player] = true
@@ -222,10 +314,16 @@ local function onPlayerAdded(player: Player)
 end
 
 local function onPlayerRemoving(player: Player)
+	-- Signal handlers run now, up to their first yield, so anything they change is
+	-- in the profile built below.
+	PlayerStateService.PlayerLeaving:Fire(player)
+
 	if loaded[player] then
 		saveProfile(player)
 	end
 	loaded[player] = nil
+	saveQueued[player] = nil
+	saveSequence[player] = nil
 	if storesAvailable then
 		releaseLock(player)
 	end
@@ -249,8 +347,19 @@ function DataPersistenceService.Init()
 
 	-- A wipe must hit the DataStore immediately: crashing the server right
 	-- after losing the last Soul Node cannot resurrect the character.
+	-- Deferred so every other CharacterWiped handler clears its data first, or this
+	-- write would keep the old affinity and skill nodes.
 	PlayerStateService.CharacterWiped:Connect(function(player)
-		if player.Parent and loaded[player] then
+		task.defer(function()
+			if player.Parent and loaded[player] then
+				saveProfile(player)
+			end
+		end)
+	end)
+
+	-- Any Soul Node loss is irreversible. The final node is covered by the wipe above.
+	PlayerStateService.SoulNodeLost:Connect(function(player, remainingNodes)
+		if remainingNodes > 0 and player.Parent and loaded[player] then
 			saveProfile(player)
 		end
 	end)
@@ -284,8 +393,12 @@ function DataPersistenceService.Init()
 			task.wait(Constants.SESSION_LOCK_RENEW_INTERVAL)
 			if storesAvailable then
 				for _, player in loadedPlayers() do
-					if player.Parent and loaded[player] then
-						tryClaimLock(playerKey(player))
+					if player.Parent and loaded[player] and claimLock(player) == "HeldElsewhere" then
+						-- Our lock expired and another server took the profile. Stop
+						-- writing, or this server would overwrite that session's data.
+						loaded[player] = nil
+						warn(`[DataPersistence] Lost the session lock for {player.Name}`)
+						player:Kick("Your character was opened on another server.")
 					end
 				end
 			end
@@ -296,6 +409,10 @@ function DataPersistenceService.Init()
 	game:BindToClose(function()
 		for _, player in loadedPlayers() do
 			saveProfile(player)
+			releaseLock(player)
+		end
+		-- Players still loading hold a lock too.
+		for player in table.clone(heldLocks) do
 			releaseLock(player)
 		end
 	end)

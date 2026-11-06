@@ -6,8 +6,8 @@
 --   2. If the outcome is Lethal Exhaustion the server fires AwakeningQTE:
 --      a fast-twitch aura-balance bar appears. Press SPACE while the marker
 --      is inside the target zone the required number of times before the
---      collapse timer expires. The result is reported to the server, which
---      enforces its own deadline (this UI cannot cheat the timing).
+--      collapse timer expires. Each hit is reported to the server, which
+--      judges it and sends the verdict. Only that verdict decides what is shown.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -82,7 +82,7 @@ local qteCorner = Instance.new("UICorner")
 qteCorner.CornerRadius = UDim.new(0, 6)
 qteCorner.Parent = qteFrame
 
-local ZONE_HALF_WIDTH = 0.12 -- fraction of the bar on each side of center
+local ZONE_HALF_WIDTH = Constants.AWAKENING_QTE_ZONE_HALF_WIDTH
 
 local targetZone = Instance.new("Frame")
 targetZone.AnchorPoint = Vector2.new(0.5, 0)
@@ -191,15 +191,13 @@ local qteActive = false
 local qteHits = 0
 local qteRequired = 0
 local qteEndsAt = 0
-local qteMarkerPosition = 0.5
 local qteStartedAt = 0
+local qteDrawnElapsed = 0 -- QTE time of the marker currently on screen
+local qteLastPressElapsed = -math.huge
 
-local function finishQTE(success: boolean)
-	if not qteActive then
-		return
-	end
+local function showVerdict(success: boolean)
 	qteActive = false
-	qteRemote:FireServer({ success = success })
+	cinematicToken += 1
 
 	local token = cinematicToken
 	if success then
@@ -223,7 +221,11 @@ local function finishQTE(success: boolean)
 end
 
 local function startQTE(duration: number, requiredHits: number)
+	-- Stops the wheel's last write landing on top of these instructions.
+	cinematicToken += 1
 	qteActive = true
+	qteDrawnElapsed = 0
+	qteLastPressElapsed = -math.huge
 	qteHits = 0
 	qteRequired = requiredHits
 	qteStartedAt = os.clock()
@@ -244,15 +246,14 @@ RunService.RenderStepped:Connect(function()
 
 	local now = os.clock()
 	if now >= qteEndsAt then
-		finishQTE(false)
+		-- Time is up. The server's verdict is on its way.
+		qteActive = false
+		qteStatusLabel.Text = "..."
 		return
 	end
 
-	-- Oscillation speeds up as the collapse timer runs down.
-	local elapsed = now - qteStartedAt
-	local frequency = 6 + elapsed * 1.5
-	qteMarkerPosition = 0.5 + 0.45 * math.sin(elapsed * frequency)
-	marker.Position = UDim2.fromScale(qteMarkerPosition, 0)
+	qteDrawnElapsed = now - qteStartedAt
+	marker.Position = UDim2.fromScale(AwakeningOutcomes.QTEMarkerPosition(qteDrawnElapsed), 0)
 
 	local remaining = qteEndsAt - now
 	qteStatusLabel.Text = `Hits {qteHits}/{qteRequired}   Collapse in {string.format("%.1f", remaining)}s`
@@ -266,15 +267,23 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 
-	if math.abs(qteMarkerPosition - 0.5) <= ZONE_HALF_WIDTH then
+	-- Judge what the player saw: the marker moves too fast at low frame rates to
+	-- judge it at the moment the key went down. The server recomputes from this time.
+	local elapsed = qteDrawnElapsed
+	if elapsed - qteLastPressElapsed < Constants.AWAKENING_QTE_MIN_PRESS_SPACING then
+		return
+	end
+	qteLastPressElapsed = elapsed
+
+	if AwakeningOutcomes.IsQTEHit(elapsed, ZONE_HALF_WIDTH) then
 		qteHits += 1
+		qteRemote:FireServer({ elapsed = elapsed })
 		targetZone.BackgroundColor3 = Color3.fromRGB(110, 230, 130)
 		task.delay(0.1, function()
 			targetZone.BackgroundColor3 = Color3.fromRGB(70, 160, 90)
 		end)
-		if qteHits >= qteRequired then
-			finishQTE(true)
-		end
+		-- Keep taking presses until the verdict arrives: the server has the last word
+		-- and may have refused one of these, so more hits can still save the player.
 	else
 		targetZone.BackgroundColor3 = Color3.fromRGB(200, 80, 80)
 		task.delay(0.1, function()
@@ -315,6 +324,10 @@ end)
 
 qteRemote.OnClientEvent:Connect(function(payload)
 	if type(payload) ~= "table" then
+		return
+	end
+	if payload.verdict ~= nil then
+		showVerdict(payload.verdict == "Stabilized")
 		return
 	end
 	local duration = type(payload.duration) == "number" and payload.duration or Constants.AWAKENING_QTE_SECONDS

@@ -167,19 +167,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		playAttack(character)
-	elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-		playNamed(character, "BlockIdle")
 	elseif input.KeyCode == Enum.KeyCode.F then
 		playNamed(character, "Parry")
-	end
-end)
-
-UserInputService.InputEnded:Connect(function(input, _gameProcessed)
-	if input.UserInputType == Enum.UserInputType.MouseButton2 then
-		local character = localPlayer.Character
-		if character then
-			stopNamed(character, "BlockIdle")
-		end
 	end
 end)
 
@@ -201,6 +190,9 @@ local BROADCAST_HANDLERS = {
 	Downed = function(character)
 		playNamed(character, "Downed")
 	end,
+	Recovered = function(character)
+		stopNamed(character, "Downed")
+	end,
 	BlockStart = function(character)
 		playNamed(character, "BlockIdle")
 	end,
@@ -213,11 +205,11 @@ broadcastRemote.OnClientEvent:Connect(function(event)
 	if type(event) ~= "table" then
 		return
 	end
-	-- The local player's actions were already predicted; Stagger/GuardBreak/
-	-- Downed are server-initiated so they still apply to us.
+	-- The local player's attack and parry were already predicted. Everything else
+	-- is decided by the server, including a block, which starts only after F has
+	-- been held, so it still applies to us.
 	local isLocal = event.userId == localPlayer.UserId
 	local predicted = event.kind == "Attack" or event.kind == "Parry"
-		or event.kind == "BlockStart" or event.kind == "BlockEnd"
 	if isLocal and predicted then
 		return
 	end

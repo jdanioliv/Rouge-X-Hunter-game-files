@@ -1,8 +1,8 @@
 -- NenAffinityService
 -- Owns each player's innate Nen category and all skill node purchases through
 -- the Kastro Penalty Engine. With the awakening gate, affinity is NO LONGER
--- assigned on join: NenAwakeningService calls AssignAffinity (the Water
--- Divination roll) when a player successfully awakens. In Studio,
+-- assigned on join: NenAwakeningService and WaterDivinationService call
+-- AssignAffinity when a player successfully awakens. In Studio,
 -- PlayerStateService's AUTO_AWAKEN_DEBUG path calls it directly.
 
 local Players = game:GetService("Players")
@@ -217,11 +217,13 @@ function NenAffinityService.Init()
 	-- A full character wipe erases Nen progression entirely (GDD section 2):
 	-- back to dormant. In Studio debug mode, immediately re-awaken for testing.
 	PlayerStateService.CharacterWiped:Connect(function(player)
+		-- Cleared even for a player on the way out: their final save still has to
+		-- record the wipe.
+		affinities[player] = nil
+		learnedNodes[player] = {}
 		if not player.Parent then
 			return
 		end
-		affinities[player] = nil
-		learnedNodes[player] = {}
 		if RunService:IsStudio() and Constants.AUTO_AWAKEN_DEBUG then
 			PlayerStateService.SetNenAwakened(player, true)
 			NenAffinityService.AssignAffinity(player)
@@ -241,6 +243,11 @@ function NenAffinityService.Init()
 		end
 
 		local success, reason = NenAffinityService.TryLearnSkillNode(player, category)
+		if success then
+			-- Lazy for the same reason as WaterDivinationService: DataPersistenceService
+			-- requires this module at load time.
+			require(script.Parent.DataPersistenceService).RequestSave(player)
+		end
 		return {
 			success = success,
 			reason = reason,

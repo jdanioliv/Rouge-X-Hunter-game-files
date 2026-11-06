@@ -54,6 +54,20 @@ export type AwakeningPenalties = {
 
 export type AwakeningOutcome = "Clean" | "Exhaustion" | "Mutilation" | "Bypassed" | "Fatal"
 
+-- AwakeningQTE remote, server -> client: starts the QTE, then sends its verdict.
+export type AwakeningQTEStart = {
+	duration: number,
+	requiredHits: number,
+}
+export type AwakeningQTEVerdict = {
+	verdict: "Stabilized" | "Collapsed",
+}
+-- AwakeningQTE remote, client -> server: one press, stamped with the client's QTE
+-- time. The server recomputes the marker at that time and judges the hit itself.
+export type AwakeningQTEPress = {
+	elapsed: number,
+}
+
 -- A validated Seiyaku (Pledge & Limitation) build (GDD section 4).
 export type SeiyakuModifierSelection = {
 	id: string,
@@ -100,7 +114,7 @@ export type PlayerState = {
 	combatTagEndsAt: number,
 
 	isDowned: boolean,
-	downedEndsAt: number,
+	isDead: boolean, -- killed by a Soul Node loss and waiting to respawn
 
 	lastAttackAt: number,
 	attackLockedUntil: number, -- frame-trap lockout after being parried
@@ -166,7 +180,7 @@ export type CombatFeedback = {
 
 -- Server -> all clients: transient combat events for animation/VFX rendering.
 export type CombatBroadcast = {
-	kind: "Attack" | "Parry" | "Stagger" | "GuardBreak" | "Downed" | "BlockStart" | "BlockEnd",
+	kind: "Attack" | "Parry" | "Stagger" | "GuardBreak" | "Downed" | "Recovered" | "BlockStart" | "BlockEnd",
 	userId: number,
 }
 

@@ -50,7 +50,7 @@ local function sweepHitbox(attackerCharacter: Model): { Model }
 	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
 	overlapParams.FilterDescendantsInstances = { attackerCharacter }
 
-	-- Box centered ATTACK_RANGE/2 studs in front of the attacker.
+	-- Box centered ATTACK_RANGE/2 + 1 studs in front of the attacker.
 	local sweepCFrame = rootPart.CFrame * CFrame.new(0, 0, -(Constants.ATTACK_RANGE / 2 + 1))
 	local parts = workspace:GetPartBoundsInBox(sweepCFrame, Constants.ATTACK_HITBOX_SIZE, overlapParams)
 
@@ -88,13 +88,12 @@ local function computeAttackDamage(attacker: Player): number
 		damage *= 1 + (state.ryuRatio.offense * Constants.RYU_OFFENSE_SCALING)
 	end
 
-	-- Basic strikes are Enhancement-scaled: an Enhancer's raw melee hits
-	-- harder than an off-type's (foundation-level use of the hexagon engine).
+	-- Basic strikes are Enhancement-scaled: an Enhancer's raw melee hits harder
+	-- than an off-type's. Blended so off-types are weaker but not unplayable. A
+	-- dormant player has no efficiency at all, so hits weakest of everyone.
 	local enhancementMultiplier = NenAffinityService.GetEffectMultiplier(attacker, "Enhancement")
-	if enhancementMultiplier > 0 then
-		-- Blend so off-types are weaker but not unplayable: 70% flat + 30% scaled.
-		damage *= 0.7 + 0.3 * enhancementMultiplier
-	end
+	local blend = Constants.MELEE_AFFINITY_BLEND
+	damage *= (1 - blend) + blend * enhancementMultiplier
 
 	return damage
 end
@@ -107,6 +106,11 @@ local function resolveHitOnPlayer(attacker: Player, victim: Player)
 	local victimState = PlayerStateService.GetState(victim)
 	local attackerState = PlayerStateService.GetState(attacker)
 	if not victimState or not attackerState then
+		return
+	end
+
+	-- A corpse waiting to respawn is not a target: no more nodes to take from it.
+	if not PlayerStateService.IsCharacterAlive(victim) then
 		return
 	end
 
@@ -124,7 +128,7 @@ local function resolveHitOnPlayer(attacker: Player, victim: Player)
 	-- heavy posture damage on them (GDD section 8).
 	if PlayerStateService.IsParryActive(victim, Constants.NETWORK_TOLERANCE) then
 		PlayerStateService.ApplyPostureDamage(attacker, Constants.PARRY_POSTURE_DAMAGE_TO_ATTACKER)
-		attackerState.attackLockedUntil = os.clock() + Constants.PARRY_FRAME_TRAP_SECONDS
+		PlayerStateService.ExtendAttackLockout(attacker, Constants.PARRY_FRAME_TRAP_SECONDS)
 		sendFeedback(victim, "ParrySuccess")
 		sendFeedback(attacker, "GotParried")
 		broadcast(attacker, "Stagger")
@@ -141,7 +145,7 @@ local function resolveHitOnPlayer(attacker: Player, victim: Player)
 	-- Clean hit. Guard-broken targets take bonus damage as the punish window.
 	local damage = computeAttackDamage(attacker)
 	if victimState.isGuardBroken then
-		damage *= 1.5
+		damage *= Constants.GUARD_BROKEN_DAMAGE_MULTIPLIER
 	end
 	local dealt = PlayerStateService.ApplyDamage(victim, damage, attacker)
 	sendFeedback(attacker, "Hit", dealt)
@@ -158,21 +162,15 @@ end
 
 local function handleAttack(player: Player)
 	local state = PlayerStateService.GetState(player)
-	if not state or not PlayerStateService.CanAct(player) then
+	if not state or not PlayerStateService.CanAttack(player) then
 		return
 	end
 
 	local now = os.clock()
-	if now < state.attackLockedUntil then
-		return -- frame-trapped after being parried
-	end
 	if now - state.lastAttackAt < Constants.ATTACK_COOLDOWN then
 		return
 	end
-	if state.isBlocking or state.isParrying then
-		return
-	end
-	state.lastAttackAt = now
+	PlayerStateService.SetLastAttackAt(player, now)
 	broadcast(player, "Attack")
 
 	local character = player.Character
@@ -235,10 +233,15 @@ function CombatService.Init()
 
 	-- Relay state-machine events to all clients for stagger/downed animations.
 	PlayerStateService.GuardBroken:Connect(function(player)
+		broadcast(player, "BlockEnd") -- the state machine dropped their block
 		broadcast(player, "GuardBreak")
 	end)
 	PlayerStateService.PlayerDowned:Connect(function(player)
+		broadcast(player, "BlockEnd")
 		broadcast(player, "Downed")
+	end)
+	PlayerStateService.PlayerRecovered:Connect(function(player)
+		broadcast(player, "Recovered")
 	end)
 end
 
