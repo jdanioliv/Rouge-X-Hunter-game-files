@@ -141,6 +141,10 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 | Un Hatsu bloqueado o con parry no cuenta como fallo para `backfire` | 2026-11-06 |
 | La ventana de parry se juzga en el juego, y se puede ajustar | 2026-11-06 |
 | Fatal Overload quita una vida, no borra el personaje | 2026-11-06 |
+| Caído: cura cada 1,5 s y se levanta al 35%, unos 6 s (4 curas de 8,75%) | 2026-11-06 |
+| Regeneración normal solo fuera de combate, 2,5-5% por segundo, ajustable. El código usa 2,5% | 2026-11-06 |
+| El modo descanso solo existe en hogueras: sienta al jugador y cura bien con el tiempo. Aún no está hecho | 2026-11-06 |
+| El Grip dura unos 2,5-3 s de animación. El código aún lo aplica al instante | 2026-11-06 |
 
 **Preguntas abiertas para el dueño**
 1. **Para cuando esté en casa:** ¿dónde está el GDD? Debería mirar en su pendrive.
@@ -150,8 +154,9 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 5. ¿`prototype_scale.rbxl`, en sus Documentos, tiene que ver con este juego?
 6. ¿El builder es más importante de lo que asumí? Lo puse después del quiz y las sugerencias porque depende de un catálogo de habilidades que no existe.
 7. ¿Dónde alojar la web?
-8. ¿Cada cuánto cura el jugador caído, y con cuánta vida se levanta? Puse 8% cada 2 segundos y 30%, que son suposiciones mías.
-9. ¿Debe existir regeneración normal, y solo fuera de combate? Hoy el código no tiene ninguna.
+8. ¿Qué diseño de HUD se elige? Hay tres opciones en https://claude.ai/artifact/4q1AgAQEKPvQ8oWHjnA82W (privado). Recomiendo Center Line.
+9. Botón Reset de Roblox: ¿se desactiva? El dueño entendió "descansar", así que la pregunta sigue abierta.
+10. Grip de 2,5-3 s: ¿sigue curando la víctima mientras la agarran, y se puede interrumpir? Con 6 s en el suelo decide si un Grip tardío llega a tiempo.
 
 ## Lo más importante que encontramos
 - **El árbol de habilidades no afecta al juego.** Comprar un nodo gasta memoria y sube un contador que se guarda y la interfaz muestra, pero ninguna lógica de juego lo usa: `GetLearnedNodes` no tiene llamadas (`NenAffinityService.luau:123`). Tampoco hay habilidades con nombre. Es la mayor carencia de diseño, y bloquea el builder.
