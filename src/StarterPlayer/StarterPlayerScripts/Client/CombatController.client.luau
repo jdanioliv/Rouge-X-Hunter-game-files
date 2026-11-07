@@ -94,7 +94,14 @@ end)
 -- once blocking is possible again, ask for it back rather than leave the player
 -- holding the key with no guard up.
 snapshotRemote.OnClientEvent:Connect(function(snapshot)
-	if not blockSent or type(snapshot) ~= "table" then
+	if type(snapshot) ~= "table" then
+		return
+	end
+	-- The server may refuse a Ryu change, as it does during a Grip, so its value wins.
+	if type(snapshot.ryuOffense) == "number" then
+		ryuOffense = snapshot.ryuOffense
+	end
+	if not blockSent then
 		return
 	end
 	if snapshot.isBlocking or snapshot.isGuardBroken or snapshot.isDowned then

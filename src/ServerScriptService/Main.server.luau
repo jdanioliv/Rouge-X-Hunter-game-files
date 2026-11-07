@@ -1,7 +1,7 @@
 -- Server bootstrap. Initializes services in dependency order.
--- DataPersistenceService MUST init first: its PlayerAdded/PlayerRemoving
--- connections need to fire before PlayerStateService's so profiles are
--- claimed before gameplay starts and saved before state is cleared.
+-- DataPersistenceService inits first so profiles are claimed as early as possible.
+-- Leaving does not rely on handler order: its PlayerRemoving handler saves, then fires
+-- PlayerGone, and only that signal clears player data.
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local servicesFolder = ServerScriptService:WaitForChild("Services")

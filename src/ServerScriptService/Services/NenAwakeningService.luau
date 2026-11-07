@@ -17,6 +17,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Constants)
@@ -186,7 +187,15 @@ end
 
 local function beginAwakening(player: Player)
 	local state = PlayerStateService.GetState(player)
-	if not state or state.isDowned or inProgress[player] or not PlayerStateService.IsCharacterAlive(player) then
+	if not state or state.isDowned or state.isGripping or inProgress[player] or not PlayerStateService.IsCharacterAlive(player) then
+		return
+	end
+	-- Until the saved profile loads, this state is only defaults: a spin now would be paid
+	-- for by money about to be overwritten, and could reroll a saved affinity. Studio can
+	-- run without saves, so it is exempt.
+	local DataPersistenceService = require(script.Parent.DataPersistenceService)
+	if not RunService:IsStudio() and not DataPersistenceService.IsLoaded(player) then
+		resultRemote:FireClient(player, { outcome = "Rejected", reason = "Loading" })
 		return
 	end
 	if state.nenAwakened then
@@ -265,7 +274,7 @@ function NenAwakeningService.Init()
 		end
 	end)
 
-	Players.PlayerRemoving:Connect(function(player)
+	PlayerStateService.PlayerGone:Connect(function(player)
 		inProgress[player] = nil
 		pendingOutcome[player] = nil
 		pendingQTE[player] = nil

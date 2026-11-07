@@ -175,7 +175,7 @@ local function startSession(player: Player): (boolean, string?)
 	if state.nenAwakened and not isStudioDebug() then
 		return false, "AlreadyAwakened"
 	end
-	if state.isDowned or state.isGuardBroken then
+	if state.isDowned or state.isGuardBroken or state.isGripping then
 		return false, "Incapacitated"
 	end
 	if PlayerStateService.IsInCombat(player) then
@@ -416,8 +416,8 @@ function MeditationService.Init()
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
-		-- This runs after the final save, so it is cleanup only. Partial focus is
-		-- already saved, because every accepted tick commits it to PlayerState.
+		-- Cleanup only, and it may run before or after the final save. Partial focus is
+		-- safe either way, because every accepted tick commits it to PlayerState.
 		endSession(player, "Left")
 		restorePoints[player] = nil
 		lastKnownHealth[player] = nil

@@ -306,7 +306,8 @@ resultRemote.OnClientEvent:Connect(function(payload)
 		cinematicToken += 1
 		local token = cinematicToken
 		screenGui.Enabled = true
-		wheelLabel.Text = payload.reason == "InsufficientFunds" and "NOT ENOUGH MONEY" or "ALREADY AWAKENED"
+		local rejectionText = { InsufficientFunds = "NOT ENOUGH MONEY", Loading = "STILL LOADING, TRY AGAIN" }
+		wheelLabel.Text = rejectionText[payload.reason] or "ALREADY AWAKENED"
 		wheelLabel.TextColor3 = Color3.fromRGB(255, 170, 90)
 		descriptionLabel.Text = ""
 		task.delay(2, function()

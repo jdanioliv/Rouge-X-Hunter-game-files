@@ -31,6 +31,8 @@ PlayerStateService.PlayerDamaged = Signal.new() -- (player, finalDamage, attacke
 -- Fired by DataPersistenceService just before a leaving player's final save, so
 -- pending consequences can be applied in time to be written.
 PlayerStateService.PlayerLeaving = Signal.new() -- (player)
+-- Fired by DataPersistenceService after that save. Clear a leaving player's data on this.
+PlayerStateService.PlayerGone = Signal.new() -- (player)
 
 local states: { [Player]: Types.PlayerState } = {}
 
@@ -249,7 +251,7 @@ local VALID_AURA_STATES = { None = true, Ten = true, Zetsu = true, Ren = true, K
 
 function PlayerStateService.SetAuraState(player: Player, auraState: string): boolean
 	local state = states[player]
-	if not state or not VALID_AURA_STATES[auraState] or state.isDowned then
+	if not state or not VALID_AURA_STATES[auraState] or state.isDowned or state.isGripping then
 		return false
 	end
 	-- Nen gate: dormant players cannot manipulate aura at all.
@@ -271,7 +273,7 @@ end
 
 function PlayerStateService.SetRyuRatio(player: Player, offense: number): boolean
 	local state = states[player]
-	if not state or type(offense) ~= "number" or offense ~= offense then
+	if not state or type(offense) ~= "number" or offense ~= offense or state.isGripping then
 		return false
 	end
 	local clamped = math.clamp(offense, 0, 1)
@@ -546,6 +548,18 @@ end
 -- Downed state, Grip finishers, soul nodes (GDD section 2 foundation)
 --------------------------------------------------------------------------------
 
+-- The server holds a downed body's physics, so its client cannot drag it out of reach
+-- of a Grip. pcall because this errors on an anchored part.
+local function setBodyOwner(player: Player, owner: Player?)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root and root:IsA("BasePart") then
+		pcall(function()
+			root:SetNetworkOwner(owner)
+		end)
+	end
+end
+
 function PlayerStateService.EnterDownedState(player: Player)
 	local state = states[player]
 	if not state or state.isDowned then
@@ -567,6 +581,7 @@ function PlayerStateService.EnterDownedState(player: Player)
 		humanoid.JumpPower = 0
 		humanoid.PlatformStand = true
 	end
+	setBodyOwner(player, nil)
 
 	PlayerStateService.PlayerDowned:Fire(player)
 	sendFeedback(player, "Downed")
@@ -575,6 +590,7 @@ end
 local function recoverFromDowned(player: Player, state)
 	state.isDowned = false
 	syncAttributes(player, state)
+	setBodyOwner(player, player)
 
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -597,6 +613,10 @@ function PlayerStateService.BeginGrip(attacker: Player, victim: Player): boolean
 	local attackerState = states[attacker]
 	local victimState = states[victim]
 	if not attackerState or not victimState or not victimState.isDowned or victimState.isBeingGripped then
+		return false
+	end
+	-- Meditation holds its own movement values, which a Grip must not save and restore.
+	if attackerState.isMeditating then
 		return false
 	end
 	if not PlayerStateService.CanAct(attacker) then
@@ -659,9 +679,9 @@ function PlayerStateService.LoseSoulNode(player: Player, reason: string)
 
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	state.isDead = true -- respawning clears this
 	if humanoid then
 		humanoid.Health = 0
-		state.isDead = true
 	end
 
 	if state.soulNodes <= 0 then
@@ -896,6 +916,9 @@ function PlayerStateService.Init()
 			warn(`[PlayerStateService] {player.Name} disconnected while combat-tagged ({math.ceil(remaining)}s remaining)`)
 			PlayerStateService.CombatLoggerDetected:Fire(player, remaining)
 		end
+	end)
+
+	PlayerStateService.PlayerGone:Connect(function(player)
 		states[player] = nil
 		downedRestore[player] = nil
 	end)

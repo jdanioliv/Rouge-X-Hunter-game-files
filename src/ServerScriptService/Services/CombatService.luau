@@ -116,6 +116,13 @@ local function handleGrip(attacker: Player)
 	end
 end
 
+-- Dead with no Soul Node loss recorded: the victim pressed Reset or killed their own
+-- character. That must not dodge a Grip already under way.
+local function victimKilledThemselves(victim: Player): boolean
+	local victimState = PlayerStateService.GetState(victim)
+	return victimState ~= nil and not victimState.isDead and not PlayerStateService.IsCharacterAlive(victim)
+end
+
 local function stepGrips()
 	local now = os.clock()
 	for attacker, grip in activeGrips do
@@ -125,18 +132,14 @@ local function stepGrips()
 
 		if not attackerState or not victimState then
 			breakGrip(attacker, victim) -- one of them left the game
+		elseif victimKilledThemselves(victim) then
+			landGrip(attacker, victim)
+		elseif not PlayerStateService.IsCharacterAlive(victim) then
+			breakGrip(attacker, victim) -- something else already took a Soul Node
 		elseif not attackerState.isGripping or attackerState.isDowned or attackerState.isGuardBroken then
 			breakGrip(attacker, victim)
 		elseif not PlayerStateService.IsCharacterAlive(attacker) then
 			breakGrip(attacker, victim)
-		elseif not PlayerStateService.IsCharacterAlive(victim) then
-			-- isDead means something else already took a Soul Node. Without it the victim
-			-- pressed Reset, and that must not dodge a Grip already under way.
-			if victimState.isDead then
-				breakGrip(attacker, victim)
-			else
-				landGrip(attacker, victim)
-			end
 		elseif not victimState.isDowned or isTooFarApart(attacker, victim) then
 			breakGrip(attacker, victim)
 		elseif now >= grip.endsAt then
@@ -356,8 +359,12 @@ function CombatService.Init()
 		local grip = activeGrips[player]
 		if grip then
 			local victim = grip.victim
-			breakGrip(player, victim)
-			PlayerStateService.RestartDownedRecovery(victim)
+			if victimKilledThemselves(victim) then
+				landGrip(player, victim)
+			else
+				breakGrip(player, victim)
+				PlayerStateService.RestartDownedRecovery(victim)
+			end
 		end
 	end)
 

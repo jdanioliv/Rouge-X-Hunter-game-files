@@ -14,8 +14,9 @@
 -- lock service is down, the player cannot join a live server, and a running
 -- session stops saving once its last confirmation is too old to rely on.
 --
--- Init() must run BEFORE the other services in Main so this service's
--- PlayerRemoving handler fires first, reading state before it is cleared.
+-- Roblox does not promise handler order, so nothing clears a leaving player's data on
+-- PlayerRemoving. This service fires PlayerLeaving, saves, then fires PlayerGone, and
+-- other services clear their data on that.
 
 local DataStoreService = game:GetService("DataStoreService")
 local MemoryStoreService = game:GetService("MemoryStoreService")
@@ -193,8 +194,7 @@ local function saveProfile(player: Player): boolean
 	if not loaded[player] then
 		return false
 	end
-	-- Built before anything yields: on leave, state is cleared by the next
-	-- PlayerRemoving handler as soon as this thread waits.
+	-- Built before anything yields, so later changes cannot mix into this save.
 	local profile = buildProfile(player)
 	if not profile then
 		return false
@@ -321,6 +321,7 @@ local function onPlayerRemoving(player: Player)
 	if loaded[player] then
 		saveProfile(player)
 	end
+	PlayerStateService.PlayerGone:Fire(player)
 	loaded[player] = nil
 	saveQueued[player] = nil
 	saveSequence[player] = nil

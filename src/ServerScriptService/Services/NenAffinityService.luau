@@ -209,7 +209,7 @@ function NenAffinityService.Init()
 		onPlayerAdded(player)
 	end
 
-	Players.PlayerRemoving:Connect(function(player)
+	PlayerStateService.PlayerGone:Connect(function(player)
 		affinities[player] = nil
 		learnedNodes[player] = nil
 	end)
