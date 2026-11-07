@@ -10,8 +10,6 @@
     "co-optimize": "node scripts/co_optimizer.js",
     "dry-run": "node scripts/co_optimizer.js --dry-run --mode dual-code --prompt \"dry run smoke test\"",
     "update-memory": "node scripts/update_memory_index.js",
-    "cleanup:weekly": "node scripts/routines/weekly_architect_cleanup.js",
-    "scheduler": "node scripts/routines/scheduler.js",
     "vault:new": "node scripts/vault_session.js new",
     "vault:index": "node scripts/vault_session.js index",
     "vault:status": "node scripts/vault_session.js status",
@@ -22,8 +20,7 @@
   },
   "dependencies": {
     "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "node-cron": "^3.0.3"
+    "express": "^4.19.2"
   },
   "engines": {
     "node": ">=18.0.0"

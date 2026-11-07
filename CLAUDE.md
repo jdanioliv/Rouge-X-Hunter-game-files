@@ -89,13 +89,8 @@ re-verifies your refined code against real lint evidence, and the reviewer's cou
 — not your self-report — decides whether anything gets written. See
 `templates/REVIEW_RUBRIC.md` § External Evidence & Independent Verification.
 
-> Note: the weekly cleanup entries below never ran. Their reports contain only "Failed to spawn 'claude'". See
-> `GameNotes/Feedback/Project-Feedback.md`.
-
 <!-- AGENTIC-OS:RECENT-CHANGES:START -->
-- `2026-09-20T01:00:00.360Z` **weekly-2026-09-20** proposed cleanup for: `0 nightly report(s), 41 stale ref(s)` — see output/reviews/weekly/2026-09-20_proposal.md
-- `2026-09-13T01:00:00.791Z` **weekly-2026-09-13** proposed cleanup for: `0 nightly report(s), 41 stale ref(s)` — see output/reviews/weekly/2026-09-13_proposal.md
-- `2026-08-30T01:00:00.593Z` **weekly-2026-08-30** proposed cleanup for: `0 nightly report(s), 41 stale ref(s)` — see output/reviews/weekly/2026-08-30_proposal.md
+
 <!-- AGENTIC-OS:RECENT-CHANGES:END -->
 
 ## 6. Session Documentation (Obsidian vault -> GitHub) — every session, no exceptions

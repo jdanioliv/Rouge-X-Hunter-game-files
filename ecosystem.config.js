@@ -19,17 +19,5 @@ module.exports = {
       out_file: path.join(__dirname, 'output', 'pm2-runner.out.log'),
       error_file: path.join(__dirname, 'output', 'pm2-runner.err.log'),
     },
-    {
-      name: 'agentic-os-scheduler',
-      script: 'scripts/routines/scheduler.js',
-      cwd: __dirname,
-      autorestart: true,
-      watch: false,
-      max_restarts: 10,
-      restart_delay: 5000,
-      env: { NODE_ENV: 'production' },
-      out_file: path.join(__dirname, 'output', 'pm2-scheduler.out.log'),
-      error_file: path.join(__dirname, 'output', 'pm2-scheduler.err.log'),
-    },
   ],
 };

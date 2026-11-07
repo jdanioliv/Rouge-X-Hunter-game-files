@@ -3,7 +3,7 @@
 // Automated Changes" section, in the same run - not left to human memory.
 //
 // Concurrency note: two co_optimizer runs (e.g. a manual dashboard trigger
-// overlapping the nightly scheduler) can both read-modify-write the same
+// overlapping another run) can both read-modify-write the same
 // router file. Without a lock this is a classic lost-update race - see
 // "Failure Mode One: Concurrency Conflicts in Shared File Systems" in the
 // multi-agent literature. A per-file lockfile (atomic O_EXCL create, retry
@@ -24,7 +24,7 @@ const LOCK_TIMEOUT_MS = 10 * 1000;
 
 // Obsidian vault lives at the repo root (per project setup) under GameNotes/.
 // Every syncRouters() call - dual-code, dual-refactor, dual-debug, nightly
-// audit, weekly cleanup - also appends to today's daily note, so "what
+// also appends to today's daily note, so "what
 // happened to the game today" always has one place to look regardless of
 // which router(s) a given run touches.
 const OBSIDIAN_DIR_REL = process.env.OBSIDIAN_NOTES_DIR || 'GameNotes';

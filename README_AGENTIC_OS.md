@@ -66,8 +66,7 @@ needed) or view it embedded in the dashboard's Section 4.
 ## Game notes (Obsidian)
 `GameNotes/` at the repo root is an Obsidian vault — open that folder
 directly in Obsidian. Start at `GameNotes/00-Home.md`. Every
-`dual-code`/`dual-refactor`/`dual-debug` run and weekly
-cleanup automatically appends a line to that day's note under
+`dual-code`/`dual-refactor`/`dual-debug` run automatically appends a line to that day's note under
 `GameNotes/Daily/<date>.md` (via `scripts/lib/routerSync.js`) — no manual
 step. The top `## Summary` section of each daily note is yours to fill in
 by hand. Change the vault's location with `OBSIDIAN_NOTES_DIR` in `.env` if
@@ -78,21 +77,8 @@ ignored by this one. Every working session documents itself there with
 `/session-log`: `npm run vault:new`, `npm run vault:lint`, `npm run vault:publish`.
 See `GameNotes/Process/Session-Documentation.md`.
 
-## Scheduled routines
-Handled by the `agentic-os-scheduler` PM2 process (`scripts/routines/scheduler.js`,
-node-cron — cross-platform, no OS Task Scheduler needed):
-- Weekly (`WEEKLY_CLEANUP_CRON`, default Sun 03:00): Claude reads unresolved
-  nightly reports + stale router references → **proposal only** at
-  `output/reviews/weekly/<date>_proposal.md`. Run manually with `--apply` if
-  you want it to write fixes directly — this is never automatic.
-
-`.ps1`/`.sh` equivalents exist under `scripts/routines/` if you'd rather use
-Windows Task Scheduler or cron instead of the PM2 scheduler.
-
 ## Safety defaults (read before turning off)
 - Nothing is ever written to a live game file without `--apply`.
-- The weekly cleanup never applies fixes automatically, even with the
-  scheduler running — `--apply` must be passed by a human.
 - A run that can't produce a machine-readable `REMAINING_CRITICAL_ISSUES: 0`
   fails closed (nothing written) rather than guessing.
 
