@@ -146,6 +146,9 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 | Salir del juego durante un Grip quita un nodo, o borra si era el último | 2026-11-07 |
 | El botón Reset de Roblox se desactiva en combate | 2026-11-07 |
 | El HUD lleva el hexágono abajo a la izquierda y la vida abajo. Las vistas previas de estados se quedan por ahora | 2026-11-07 |
+| Historia original: no copiar la de Hunter x Hunter. Deepwoken es la inspiración principal | 2026-11-07 |
+| Objetivo: que la gente vuelva con amigos y una comunidad dé feedback constante | 2026-11-07 |
+| Limpieza semanal y su planificador eliminados, con sus líneas falsas de `CLAUDE.md` | 2026-11-07 |
 
 **Preguntas abiertas para el dueño**
 0. **Prueba en Studio:** el dueño la hará cuando conecte este chat al MCP integrado de Roblox Studio (Assistant > ... > Manage MCP Servers). Trato hecho el 2026-11-07. La app de escritorio Hermes se borró del PC con su permiso el 2026-11-07. `uv`, que el MCP de Blender necesita, pasó a `~/.local/bin`. El dueño aún debe borrar su clave en OpenRouter.
