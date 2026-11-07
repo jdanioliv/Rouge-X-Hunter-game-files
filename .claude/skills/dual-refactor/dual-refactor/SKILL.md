@@ -1,6 +1,6 @@
 ---
 name: dual-refactor
-description: Ox Alpha profiles/benchmarks an existing file for perf and bugs; Claude synthesizes the production refactor. Use when the user wants an existing Luau file optimized without changing its behavior/API.
+description: The Reviewer profiles/benchmarks an existing file for perf and bugs; Claude synthesizes the production refactor. Use when the user wants an existing Luau file optimized without changing its behavior/API.
 ---
 
 # /dual-refactor
@@ -12,13 +12,13 @@ User names an existing file and wants it optimized, cleaned up, or checked
 for perf/bugs — not a from-scratch feature (use `/dual-code` for that).
 
 ## Handoff (must happen in this order)
-1. **Hermes/Ox Alpha (Stage 1)** — profile the existing file: perf bottlenecks,
+1. **Reviewer (Stage 1)** — profile the existing file: perf bottlenecks,
    GC pressure, race conditions, bugs, ranked by rubric severity.
 2. **Claude (Stage 2)** — synthesize the refactor resolving those findings.
    Preserve the public API/Remote contract unless a finding requires changing
    it (must call that out explicitly if so). Emit `REMAINING_CRITICAL_ISSUES:`
    and `FINAL_FILE:`.
-3. **Re-check loop (automatic)** — Hermes re-reviews the refactor; repeat
+3. **Re-check loop (automatic)** — Reviewer re-reviews the refactor; repeat
    Stage 2 up to 3 rounds total until 0 critical issues.
 4. Write to `output/artifacts/`; only overwrite the live file with `--apply`.
 

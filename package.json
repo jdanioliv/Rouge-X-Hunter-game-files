@@ -2,7 +2,7 @@
   "name": "rougexhunter-agentic-os",
   "version": "1.0.0",
   "private": true,
-  "description": "Dual-Agent Peer-Review & Code Optimization Engine for RougeXHunter (Claude Opus 5 x Hermes/Ox Alpha)",
+  "description": "Dual-Agent Peer-Review & Code Optimization Engine for RougeXHunter (Claude Opus 5 x Reviewer)",
   "main": "server/runner.js",
   "scripts": {
     "start": "node server/runner.js",
@@ -10,7 +10,6 @@
     "co-optimize": "node scripts/co_optimizer.js",
     "dry-run": "node scripts/co_optimizer.js --dry-run --mode dual-code --prompt \"dry run smoke test\"",
     "update-memory": "node scripts/update_memory_index.js",
-    "audit:nightly": "node scripts/routines/nightly_code_audit.js",
     "cleanup:weekly": "node scripts/routines/weekly_architect_cleanup.js",
     "scheduler": "node scripts/routines/scheduler.js",
     "vault:new": "node scripts/vault_session.js new",

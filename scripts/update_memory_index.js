@@ -23,7 +23,7 @@ function categorize(relPath) {
   if (relPath.startsWith('.claude/skills') || relPath.startsWith('.agent/skills')) return 'Skill';
   if (relPath.startsWith('templates')) return 'Rubric/Template';
   if (relPath.startsWith('memory/routers')) return 'Memory Router';
-  if (relPath === 'CLAUDE.md' || relPath === 'HERMES.md') return 'Root Router';
+  if (relPath === 'CLAUDE.md' || relPath === 'CLAUDE.md') return 'Root Router';
   if (relPath.startsWith('scripts') || relPath.startsWith('server') || relPath.startsWith('dashboard')) return 'Agentic OS';
   if (relPath.endsWith('.md')) return 'Docs';
   return 'Other';

@@ -90,7 +90,7 @@ async function runGemini(prompt, opts = {}) {
         systemInstruction: {
           parts: [{
             text: 'You are Gemini, acting as planner and second reviewer alongside Claude ' +
-                  '(author) and Hermes (independent verifier) on RougeXHunter. Be concrete: ' +
+                  '(author) and Reviewer (independent verifier) on RougeXHunter. Be concrete: ' +
                   'concrete file/API-level plans when planning, line-level findings tagged ' +
                   'CRITICAL/MAJOR/MINOR/NIT when reviewing - never vague advice.',
           }],

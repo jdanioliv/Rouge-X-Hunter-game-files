@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Dual-Agent (now three-engineer) Co-Optimization Pipeline
-// Coordinates Claude Opus 5 (claude -p, author), Hermes/Ox Alpha (OpenRouter,
-// independent verifier), and Gemini (Google Generative Language API, planner
+// Coordinates Claude (claude -p, author), a fresh Claude process as the Reviewer
+// (independent verifier), and Gemini (Google Generative Language API, planner
 // + second reviewer) in a multi-stage adversarial review loop. See
 // templates/REVIEW_RUBRIC.md for the shared standard all three are graded
 // against.
@@ -9,7 +9,7 @@
 // Design notes (grounded in multi-agent collaboration research - see
 // templates/REVIEW_RUBRIC.md "External Evidence & Independent Verification"):
 //   1. The proposer never certifies its own "done". Claude's Stage 3 self-
-//      report is logged for transparency but Hermes - the reviewer, not the
+//      report is logged for transparency but Reviewer - the reviewer, not the
 //      author - independently re-counts critical issues, and THAT count
 //      gates whether anything gets written. ("LLMs Cannot Self-Correct
 //      Reasoning Yet", Huang et al., ICLR 2024.)
@@ -19,7 +19,7 @@
 //      output is new information the author didn't have. (CRITIC, ICLR 2024.)
 //   3. Gemini adds a second, independently-formed voice at the plan stage
 //      (before code exists to anchor on) and the review stage (alongside
-//      Hermes) - but does NOT get a second vote on the write-gate. Hermes
+//      Reviewer) - but does NOT get a second vote on the write-gate. Reviewer
 //      alone stays authoritative for REMAINING_CRITICAL_ISSUES, on purpose:
 //      a two-verifier consensus/veto scheme adds deadlock risk and cost for
 //      a solo-dev tool, without a clear correctness win over "one dedicated,
@@ -29,7 +29,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { runClaude } = require('./lib/claudeAgent');
-const { runHermes } = require('./lib/hermesAgent');
+const { runReviewer } = require('./lib/reviewerAgent');
 const { runGemini } = require('./lib/geminiAgent');
 const { loadRubric } = require('./lib/rubric');
 const { lintLuau } = require('./lib/luauLint');
@@ -38,11 +38,11 @@ const { syncRouters } = require('./lib/routerSync');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const MAX_REFINEMENT_ROUNDS = 3;
-const DEFAULT_ROUTERS = ['CLAUDE.md', 'HERMES.md', 'GEMINI.md'];
+const DEFAULT_ROUTERS = ['CLAUDE.md', 'GEMINI.md'];
 
 /**
  * Gemini calls are additive, never load-bearing: if GEMINI_API_KEY isn't set
- * or the call fails, the pipeline degrades to the original Claude/Hermes
+ * or the call fails, the pipeline degrades to the original Claude/Reviewer
  * behavior rather than failing the run. Every call site checks `.ok`.
  */
 function formatGeminiBlock(label, result) {
@@ -93,7 +93,7 @@ function formatLintBlock(lint) {
 }
 
 /**
- * The authoritative "are we done" check. Hermes is the reviewer, not the
+ * The authoritative "are we done" check. Reviewer is the reviewer, not the
  * author of `code` - its count is what gates Stage 4, never the proposer's
  * own self-report (which is still logged separately for transparency/drift
  * detection, but never trusted as the stop condition).
@@ -101,7 +101,7 @@ function formatLintBlock(lint) {
 async function verifyIndependently(rubric, code, opts, contextLabel) {
   const lint = lintLuau(code);
   const prompt = [
-    `You are Hermes (Ox Alpha), acting as the INDEPENDENT VERIFIER - not the`,
+    `You are the Reviewer, acting as the INDEPENDENT VERIFIER - not the`,
     `author of this code. Re-review it from scratch against the rubric and the`,
     `real lint evidence below. Do not assume the author's own claims about`,
     `what they fixed are correct; verify against the evidence.`,
@@ -110,7 +110,7 @@ async function verifyIndependently(rubric, code, opts, contextLabel) {
     formatLintBlock(lint),
     `\nEnd your response with exactly one line: REMAINING_CRITICAL_ISSUES: <integer>`,
   ].join('\n');
-  const result = await runHermes(prompt, opts);
+  const result = await runReviewer(prompt, opts);
   return { criticalCount: extractCriticalCount(result.text), text: result.text, lint };
 }
 
@@ -122,7 +122,7 @@ async function runDualCode(args, logger, opts) {
   const targetContext = readTargetIfExists(args.target);
 
   const planPrompt = [
-    `You are Gemini, acting as PLANNER (you plan; Claude implements; Hermes`,
+    `You are Gemini, acting as PLANNER (you plan; Claude implements; Reviewer`,
     `independently verifies). Before any code is written, produce a short`,
     `implementation plan for the feature request below: approach, which`,
     `files/systems it touches, state/API surface it needs, and edge cases or`,
@@ -157,7 +157,7 @@ async function runDualCode(args, logger, opts) {
     const lintBefore = lintLuau(currentCode);
 
     const stage2Prompt = [
-      `You are Hermes (Ox Alpha), an adversarial senior reviewer on RougeXHunter.`,
+      `You are the Reviewer, an adversarial senior reviewer on RougeXHunter.`,
       `Audit the code below against the rubric. Focus on race conditions, listener`,
       `leaks, state sync, GC/perf hotspots, edge cases, null/bounds checks.`,
       `Give concrete diff-style patches, not vague advice. Tag every finding`,
@@ -169,9 +169,9 @@ async function runDualCode(args, logger, opts) {
     ].join('\n');
 
     const stage2bPrompt = [
-      `You are Gemini, the SECOND reviewer alongside Hermes on RougeXHunter`,
-      `(you don't gate the write - Hermes's independent recheck does - but`,
-      `your findings must be addressed in the next revision same as Hermes's).`,
+      `You are Gemini, the SECOND reviewer alongside Reviewer on RougeXHunter`,
+      `(you don't gate the write - Reviewer's independent recheck does - but`,
+      `your findings must be addressed in the next revision same as Reviewer's).`,
       `Audit the code below against the rubric, independently of any other`,
       `review. Tag every finding CRITICAL/MAJOR/MINOR/NIT.`,
       `\n--- REVIEW RUBRIC ---\n${rubric}`,
@@ -180,7 +180,7 @@ async function runDualCode(args, logger, opts) {
     ].join('\n');
 
     const [stage2, stage2b] = await Promise.all([
-      runHermes(stage2Prompt, opts),
+      runReviewer(stage2Prompt, opts),
       runGemini(stage2bPrompt, opts),
     ]);
     logger.writeStage('stage2_critique', `stage2_critique_round${round}.md`, stage2.text);
@@ -194,10 +194,10 @@ async function runDualCode(args, logger, opts) {
       `or violates the rubric and say why - for either reviewer.`,
       `\n--- REVIEW RUBRIC ---\n${rubric}`,
       `\n--- YOUR PREVIOUS CODE ---\n${currentCode}`,
-      `\n--- HERMES/OX ALPHA CRITIQUE ---\n${stage2.text}`,
+      `\n--- REVIEWER CRITIQUE ---\n${stage2.text}`,
       formatGeminiBlock('GEMINI CRITIQUE', stage2b),
       `\nEnd your response with a line: REMAINING_CRITICAL_ISSUES: <integer> (your own`,
-      `estimate - note this is informational only; Hermes independently re-verifies next).`,
+      `estimate - note this is informational only; Reviewer independently re-verifies next).`,
       `Then output the complete final file as:\nFINAL_FILE:\n\`\`\`luau\n<code>\n\`\`\``,
     ].join('\n');
 
@@ -208,15 +208,15 @@ async function runDualCode(args, logger, opts) {
 
     const verification = await verifyIndependently(rubric, currentCode, opts, `dual-code round ${round}, post-refinement`);
     logger.writeStage('stage3b_independent_verification', `stage3b_independent_verification_round${round}.md`,
-      `Claude self-reported: ${selfReportedCount ?? 'N/A'}\nHermes independently verified: ${verification.criticalCount ?? 'N/A'} (authoritative)\n\n${verification.text}`);
+      `Claude self-reported: ${selfReportedCount ?? 'N/A'}\nReviewer independently verified: ${verification.criticalCount ?? 'N/A'} (authoritative)\n\n${verification.text}`);
     verifiedCriticalCount = verification.criticalCount;
 
     if (selfReportedCount !== null && verification.criticalCount !== null && selfReportedCount !== verification.criticalCount) {
-      logger.appendRunsLog(`[${logger.runId}] NOTE: self-report/independent-verification mismatch (Claude said ${selfReportedCount}, Hermes says ${verification.criticalCount}) - trusting Hermes.`);
+      logger.appendRunsLog(`[${logger.runId}] NOTE: self-report/independent-verification mismatch (Claude said ${selfReportedCount}, Reviewer says ${verification.criticalCount}) - trusting Reviewer.`);
     }
 
     if (verifiedCriticalCount === 0) break;
-    if (verifiedCriticalCount === null) break; // Hermes didn't comply with format - fail closed below, don't loop blind
+    if (verifiedCriticalCount === null) break; // Reviewer didn't comply with format - fail closed below, don't loop blind
   }
 
   const finalCriticalCount = verifiedCriticalCount === null ? -1 : verifiedCriticalCount;
@@ -224,7 +224,7 @@ async function runDualCode(args, logger, opts) {
 
   if (finalCriticalCount !== 0) {
     logger.appendRunsLog(
-      `[${logger.runId}] SANITY CHECK FAILED - ${finalCriticalCount < 0 ? "Hermes's verification was not machine-parseable" : finalCriticalCount + ' critical issue(s) independently confirmed'}. NOT writing to codebase/artifacts.`
+      `[${logger.runId}] SANITY CHECK FAILED - ${finalCriticalCount < 0 ? "Reviewer's verification was not machine-parseable" : finalCriticalCount + ' critical issue(s) independently confirmed'}. NOT writing to codebase/artifacts.`
     );
     return { ok: false, runId: logger.runId, criticalRemaining: finalCriticalCount };
   }
@@ -240,7 +240,7 @@ async function runDualCode(args, logger, opts) {
   }
 
   await syncRouters(
-    { runId: logger.runId, action: writtenToRepo ? 'wrote' : 'proposed', file: writtenToRepo || artifactPath.replace(REPO_ROOT + path.sep, ''), note: `dual-code, ${round} round(s), Gemini-planned, 0 critical issues (Hermes-verified)` },
+    { runId: logger.runId, action: writtenToRepo ? 'wrote' : 'proposed', file: writtenToRepo || artifactPath.replace(REPO_ROOT + path.sep, ''), note: `dual-code, ${round} round(s), Gemini-planned, 0 critical issues (Reviewer-verified)` },
     DEFAULT_ROUTERS
   );
 
@@ -248,8 +248,8 @@ async function runDualCode(args, logger, opts) {
 }
 
 // ---------------------------------------------------------------------------
-// Mode: dual-refactor - Hermes profiles an existing file first, then Claude
-// synthesizes the refactor. Hermes's recheck (not Claude's self-report) gates
+// Mode: dual-refactor - Reviewer profiles an existing file first, then Claude
+// synthesizes the refactor. Reviewer's recheck (not Claude's self-report) gates
 // the loop, per the same independent-verification principle as dual-code.
 // ---------------------------------------------------------------------------
 async function runDualRefactor(args, logger, opts) {
@@ -269,7 +269,7 @@ async function runDualRefactor(args, logger, opts) {
   ].join('\n');
 
   const [profile, geminiProfile] = await Promise.all([
-    runHermes(profilePromptFor('Hermes (Ox Alpha)'), opts),
+    runReviewer(profilePromptFor('Reviewer'), opts),
     runGemini(profilePromptFor('Gemini, planning the priorities for this refactor'), opts),
   ]);
   logger.writeStage('stage1_profile', 'stage1_profile.md', profile.text);
@@ -277,11 +277,11 @@ async function runDualRefactor(args, logger, opts) {
 
   let currentCode = original;
   let round = 0;
-  let hermesVerifiedCount = null;
+  let reviewerVerifiedCount = null;
   // Round 1 synthesizes from both independent profiles; from round 2 on,
-  // Hermes's fresh recheck (verifyIndependently) is the only feed - Gemini
+  // Reviewer's fresh recheck (verifyIndependently) is the only feed - Gemini
   // doesn't re-profile every round, it informed the initial plan.
-  let findingsForNextRound = `HERMES/OX ALPHA FINDINGS:\n${profile.text}` +
+  let findingsForNextRound = `REVIEWER FINDINGS:\n${profile.text}` +
     formatGeminiBlock('GEMINI FINDINGS', geminiProfile);
 
   while (round < MAX_REFINEMENT_ROUNDS) {
@@ -293,7 +293,7 @@ async function runDualRefactor(args, logger, opts) {
       `\n--- REVIEW RUBRIC ---\n${rubric}`,
       `\n--- ORIGINAL FILE (${args.target}) ---\n${round === 1 ? original : currentCode}`,
       `\n--- FINDINGS TO ADDRESS ---\n${findingsForNextRound}`,
-      `\nEnd with: REMAINING_CRITICAL_ISSUES: <integer> (informational - Hermes`,
+      `\nEnd with: REMAINING_CRITICAL_ISSUES: <integer> (informational - Reviewer`,
       `independently re-verifies next; that count is authoritative, not this one).`,
       `Then: FINAL_FILE:\n\`\`\`luau\n<code>\n\`\`\``,
     ].join('\n');
@@ -305,19 +305,19 @@ async function runDualRefactor(args, logger, opts) {
 
     const verification = await verifyIndependently(rubric, currentCode, opts, `dual-refactor round ${round} of ${args.target}`);
     logger.writeStage('recheck', `recheck_round${round}.md`,
-      `Claude self-reported: ${selfReportedCount ?? 'N/A'}\nHermes independently verified: ${verification.criticalCount ?? 'N/A'} (authoritative)\n\n${verification.text}`);
-    hermesVerifiedCount = verification.criticalCount;
-    findingsForNextRound = verification.text; // feed Hermes's fresh findings forward, not Claude's own claim
+      `Claude self-reported: ${selfReportedCount ?? 'N/A'}\nReviewer independently verified: ${verification.criticalCount ?? 'N/A'} (authoritative)\n\n${verification.text}`);
+    reviewerVerifiedCount = verification.criticalCount;
+    findingsForNextRound = verification.text; // feed Reviewer's fresh findings forward, not Claude's own claim
 
-    if (hermesVerifiedCount === 0) break;
-    if (hermesVerifiedCount === null) break;
+    if (reviewerVerifiedCount === 0) break;
+    if (reviewerVerifiedCount === null) break;
   }
 
-  const finalCriticalCount = hermesVerifiedCount === null ? -1 : hermesVerifiedCount;
+  const finalCriticalCount = reviewerVerifiedCount === null ? -1 : reviewerVerifiedCount;
   logger.finish(finalCriticalCount);
 
   if (finalCriticalCount !== 0) {
-    logger.appendRunsLog(`[${logger.runId}] SANITY CHECK FAILED on refactor of ${args.target} (Hermes-verified). NOT applying.`);
+    logger.appendRunsLog(`[${logger.runId}] SANITY CHECK FAILED on refactor of ${args.target} (Reviewer-verified). NOT applying.`);
     return { ok: false, runId: logger.runId, criticalRemaining: finalCriticalCount };
   }
 
@@ -329,7 +329,7 @@ async function runDualRefactor(args, logger, opts) {
   }
 
   await syncRouters(
-    { runId: logger.runId, action: writtenToRepo ? 'refactored' : 'proposed refactor of', file: writtenToRepo || args.target, note: `${round} round(s), Hermes+Gemini profiled, 0 critical issues (Hermes-verified)` },
+    { runId: logger.runId, action: writtenToRepo ? 'refactored' : 'proposed refactor of', file: writtenToRepo || args.target, note: `${round} round(s), Reviewer+Gemini profiled, 0 critical issues (Reviewer-verified)` },
     DEFAULT_ROUTERS
   );
 
@@ -338,7 +338,7 @@ async function runDualRefactor(args, logger, opts) {
 
 // ---------------------------------------------------------------------------
 // Mode: dual-debug - independent hypotheses -> cross-evaluation -> verified
-// fix -> Hermes independently re-verifies the fix before it's accepted.
+// fix -> Reviewer independently re-verifies the fix before it's accepted.
 // ---------------------------------------------------------------------------
 async function runDualDebug(args, logger, opts) {
   if (!args.trace) throw new Error('dual-debug requires --trace "<error text or file path>"');
@@ -357,13 +357,13 @@ async function runDualDebug(args, logger, opts) {
     `\nGive: root cause hypothesis, confidence (0-100%), and a proposed fix.`,
   ].join('\n');
 
-  const [claudeHyp, hermesHyp, geminiHyp] = await Promise.all([
+  const [claudeHyp, reviewerHyp, geminiHyp] = await Promise.all([
     runClaude(hypothesisPromptFor('Claude Opus 5'), opts),
-    runHermes(hypothesisPromptFor('Hermes (Ox Alpha)'), opts),
+    runReviewer(hypothesisPromptFor('Reviewer'), opts),
     runGemini(hypothesisPromptFor('Gemini'), opts),
   ]);
   logger.writeStage('stage1a_claude_hypothesis', 'stage1a_claude_hypothesis.md', claudeHyp.text);
-  logger.writeStage('stage1b_hermes_hypothesis', 'stage1b_hermes_hypothesis.md', hermesHyp.text);
+  logger.writeStage('stage1b_reviewer_hypothesis', 'stage1b_reviewer_hypothesis.md', reviewerHyp.text);
   logger.writeStage('stage1c_gemini_hypothesis', 'stage1c_gemini_hypothesis.md', geminiHyp.text);
 
   // Each engineer cross-evaluates the OTHER TWO, not just one - three
@@ -376,13 +376,13 @@ async function runDualDebug(args, logger, opts) {
     ...others.map(([name, text]) => `\n--- ${name}'S HYPOTHESIS ---\n${text}`),
   ].join('\n');
 
-  const [claudeEval, hermesEval, geminiEval] = await Promise.all([
-    runClaude(crossEvalPrompt('Claude Opus 5', claudeHyp.text, [['Hermes', hermesHyp.text], ['Gemini', geminiHyp.text]]), opts),
-    runHermes(crossEvalPrompt('Hermes (Ox Alpha)', hermesHyp.text, [['Claude', claudeHyp.text], ['Gemini', geminiHyp.text]]), opts),
-    runGemini(crossEvalPrompt('Gemini', geminiHyp.text, [['Claude', claudeHyp.text], ['Hermes', hermesHyp.text]]), opts),
+  const [claudeEval, reviewerEval, geminiEval] = await Promise.all([
+    runClaude(crossEvalPrompt('Claude Opus 5', claudeHyp.text, [['Reviewer', reviewerHyp.text], ['Gemini', geminiHyp.text]]), opts),
+    runReviewer(crossEvalPrompt('Reviewer', reviewerHyp.text, [['Claude', claudeHyp.text], ['Gemini', geminiHyp.text]]), opts),
+    runGemini(crossEvalPrompt('Gemini', geminiHyp.text, [['Claude', claudeHyp.text], ['Reviewer', reviewerHyp.text]]), opts),
   ]);
   logger.writeStage('stage2a_claude_cross_eval', 'stage2a_claude_cross_eval.md', claudeEval.text);
-  logger.writeStage('stage2b_hermes_cross_eval', 'stage2b_hermes_cross_eval.md', hermesEval.text);
+  logger.writeStage('stage2b_reviewer_cross_eval', 'stage2b_reviewer_cross_eval.md', reviewerEval.text);
   logger.writeStage('stage2c_gemini_cross_eval', 'stage2c_gemini_cross_eval.md', geminiEval.text);
 
   const synthPrompt = [
@@ -392,13 +392,13 @@ async function runDualDebug(args, logger, opts) {
     `evaluations disproved), then the patch.`,
     `\n--- REVIEW RUBRIC ---\n${rubric}`,
     `\n--- CLAUDE HYPOTHESIS ---\n${claudeHyp.text}`,
-    `\n--- HERMES HYPOTHESIS ---\n${hermesHyp.text}`,
+    `\n--- REVIEWER HYPOTHESIS ---\n${reviewerHyp.text}`,
     formatGeminiBlock('GEMINI HYPOTHESIS', geminiHyp),
     `\n--- CLAUDE CROSS-EVAL ---\n${claudeEval.text}`,
-    `\n--- HERMES CROSS-EVAL ---\n${hermesEval.text}`,
+    `\n--- REVIEWER CROSS-EVAL ---\n${reviewerEval.text}`,
     formatGeminiBlock('GEMINI CROSS-EVAL', geminiEval),
     `\nEnd with: REMAINING_CRITICAL_ISSUES: <integer> (informational - if a fix`,
-    `file is produced, Hermes independently re-verifies it next).`,
+    `file is produced, Reviewer independently re-verifies it next).`,
     args.target ? `Then: FINAL_FILE:\n\`\`\`luau\n<full corrected file>\n\`\`\`` : '',
   ].join('\n');
 
@@ -430,7 +430,7 @@ async function runDualDebug(args, logger, opts) {
       writtenToRepo = args.target;
     }
     await syncRouters(
-      { runId: logger.runId, action: writtenToRepo ? 'fixed' : 'proposed fix for', file: writtenToRepo || (args.target || 'debug_fix.luau'), note: 'dual-debug, 3-way hypothesis (Claude/Hermes/Gemini), verified via independent Hermes recheck' },
+      { runId: logger.runId, action: writtenToRepo ? 'fixed' : 'proposed fix for', file: writtenToRepo || (args.target || 'debug_fix.luau'), note: 'dual-debug, 3-way hypothesis (Claude/Reviewer/Gemini), verified via independent Reviewer recheck' },
       DEFAULT_ROUTERS
     );
   }

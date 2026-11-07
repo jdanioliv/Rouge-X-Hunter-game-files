@@ -9,7 +9,6 @@ const path = require('path');
 const express = require('express');
 const { spawn } = require('child_process');
 const { runClaude } = require('../scripts/lib/claudeAgent');
-const { runHermes } = require('../scripts/lib/hermesAgent');
 const { runGemini } = require('../scripts/lib/geminiAgent');
 
 const REPO_ROOT = path.join(__dirname, '..');
@@ -89,15 +88,6 @@ app.post('/api/run/claude', async (req, res) => {
   appendLog(`RUNNER: direct claude call (${prompt.length} chars)`);
   const result = await runClaude(prompt, { dryRun: !!dryRun });
   appendLog(`RUNNER: direct claude call finished ok=${result.ok}`);
-  res.json(result);
-});
-
-app.post('/api/run/hermes', async (req, res) => {
-  const { prompt, dryRun } = req.body || {};
-  if (!prompt) return res.status(400).json({ ok: false, error: 'prompt is required' });
-  appendLog(`RUNNER: direct hermes call (${prompt.length} chars)`);
-  const result = await runHermes(prompt, { dryRun: !!dryRun });
-  appendLog(`RUNNER: direct hermes call finished ok=${result.ok}`);
   res.json(result);
 });
 

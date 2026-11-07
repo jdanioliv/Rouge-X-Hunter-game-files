@@ -56,9 +56,11 @@ sections 5, 6 or 7 below, `HANDOFF.md` wins.
 
 ## 5. Agentic OS — Multi-Agent Co-Optimization
 
-You (Claude Opus 5) are the author, one of three peer engineers. **Hermes
-(Ox Alpha)** independently verifies your work — see `HERMES.md`. **Gemini**
-plans before you write code and reviews alongside Hermes after — see
+You (Claude) are the author. **A separate Claude agent independently reviews
+your work.** In a session, that is a fresh subagent with no stake in the code: give it the
+diff and the intended rules, not your conclusions. Hermes was removed on the
+owner's instruction on 2026-11-07: never use it or OpenRouter again. **Gemini**
+plans before you write code and reviews alongside the reviewer after — see
 `GEMINI.md`. Every non-trivial feature, refactor, or bug fix should go
 through the co-optimization pipeline rather than landing unreviewed.
 
@@ -82,8 +84,8 @@ co-optimization run, the active agent updates the relevant router in the
 same turn. `scripts/lib/routerSync.js` does this automatically for
 co-optimizer runs — don't bypass it in manual sessions.
 
-**You cannot approve your own "done."** After Stage 3, Hermes independently
-re-verifies your refined code against real lint evidence, and Hermes's count
+**You cannot approve your own "done."** After Stage 3, the reviewer independently
+re-verifies your refined code against real lint evidence, and the reviewer's count
 — not your self-report — decides whether anything gets written. See
 `templates/REVIEW_RUBRIC.md` § External Evidence & Independent Verification.
 

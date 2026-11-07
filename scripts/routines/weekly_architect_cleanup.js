@@ -28,7 +28,7 @@ function loadRecentNightlyReports(days = 7) {
 function findStaleRouterReferences() {
   // Very cheap heuristic: any inline-code-span path (`...`) in a router that
   // doesn't exist on disk. Not exhaustive - flags candidates for a human/Claude look.
-  const routerFiles = ['CLAUDE.md', 'HERMES.md', 'memory/routers/SYSTEMS.md', 'memory/routers/NETWORKING.md', 'memory/routers/ASSETS.md'];
+  const routerFiles = ['CLAUDE.md', 'memory/routers/SYSTEMS.md', 'memory/routers/NETWORKING.md', 'memory/routers/ASSETS.md'];
   const stale = [];
   for (const rel of routerFiles) {
     const full = path.join(REPO_ROOT, rel);
@@ -59,7 +59,7 @@ async function main(opts = {}) {
 
   const prompt = [
     `You are Claude Opus 5 running the weekly architect cleanup.`,
-    `Below are this week's nightly defect reports from Hermes/Ox Alpha, and`,
+    `Below are this week's nightly defect reports (the nightly audit was removed, so usually none), and`,
     `a list of router references pointing at files that no longer exist.`,
     `For each real defect: propose a concrete fix (diff-style). For each`,
     `stale reference: propose the router edit that removes/updates it.`,

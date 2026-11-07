@@ -70,7 +70,7 @@
 
     <div id="form-dual-code">
       <label>Feature prompt</label>
-      <textarea id="dc-prompt" placeholder="e.g. Add a Hatsu cooldown-reset item — Gemini plans it, Claude implements, Hermes+Gemini review, Hermes verifies"></textarea>
+      <textarea id="dc-prompt" placeholder="e.g. Add a Hatsu cooldown-reset item — Gemini plans it, Claude implements, Reviewer+Gemini review, Reviewer verifies"></textarea>
       <label>Target file (optional, relative path)</label>
       <input type="text" id="dc-target" placeholder="src/ServerScriptService/Services/HatsuService.luau" />
     </div>
@@ -115,7 +115,6 @@
     <textarea id="directPrompt" placeholder="Ask any of the three engineers directly (bypasses the review loop)"></textarea>
     <div class="row">
       <button class="btn-secondary" id="askClaudeBtn">Ask Claude Opus 5</button>
-      <button class="btn-secondary" id="askHermesBtn">Ask Hermes / Ox Alpha</button>
       <button class="btn-secondary" id="askGeminiBtn">Ask Gemini</button>
     </div>
     <div class="result-box" id="directResult" style="display:none;"></div>
@@ -188,12 +187,6 @@
     var box = document.getElementById('directResult');
     box.style.display = 'block'; box.textContent = 'Asking Claude…';
     var r = await postJSON('/api/run/claude', { prompt: document.getElementById('directPrompt').value });
-    box.textContent = r.text || JSON.stringify(r, null, 2);
-  });
-  document.getElementById('askHermesBtn').addEventListener('click', async function () {
-    var box = document.getElementById('directResult');
-    box.style.display = 'block'; box.textContent = 'Asking Hermes/Ox Alpha…';
-    var r = await postJSON('/api/run/hermes', { prompt: document.getElementById('directPrompt').value });
     box.textContent = r.text || JSON.stringify(r, null, 2);
   });
   document.getElementById('askGeminiBtn').addEventListener('click', async function () {

@@ -12,7 +12,7 @@ User pastes (or points to) an actual error/stack trace/repro and wants a
 verified root-cause fix — not a design review (use `/dual-code`/`/dual-refactor`).
 
 ## Handoff (must happen in this order)
-1. **Independent hypotheses (parallel)** — Claude, Hermes, and Gemini each
+1. **Independent hypotheses (parallel)** — Claude, Reviewer, and Gemini each
    generate their OWN root-cause hypothesis + confidence %, blind to the
    other two's answers.
 2. **Cross-evaluation (parallel)** — each of the three reviews the OTHER
@@ -22,11 +22,11 @@ verified root-cause fix — not a design review (use `/dual-code`/`/dual-refacto
    whichever hypothesis/es were disproved), then the patch. Emits
    `REMAINING_CRITICAL_ISSUES:` (informational) and, if `--target` was
    given, a `FINAL_FILE:` block.
-3b. If a fix file was produced, **Hermes independently re-verifies it**
-   against real lint evidence — Hermes's count is authoritative, not
+3b. If a fix file was produced, **Reviewer independently re-verifies it**
+   against real lint evidence — Reviewer's count is authoritative, not
    Claude's or Gemini's.
 4. Fix is only written to `output/artifacts/` (and the live file, with
-   `--apply`) once Hermes confirms critical issues = 0.
+   `--apply`) once Reviewer confirms critical issues = 0.
 
 ## Input / Output paths
 - In: `--trace "<error text>"` (or a relative path to a log file) `[--target <file>]`

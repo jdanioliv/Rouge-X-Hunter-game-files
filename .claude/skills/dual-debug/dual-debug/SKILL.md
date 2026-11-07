@@ -12,7 +12,7 @@ User pastes (or points to) an actual error/stack trace/repro and wants a
 verified root-cause fix — not a design review (use `/dual-code`/`/dual-refactor`).
 
 ## Handoff (must happen in this order)
-1. **Independent hypotheses (parallel)** — Claude and Hermes each generate
+1. **Independent hypotheses (parallel)** — Claude and Reviewer each generate
    their OWN root-cause hypothesis + confidence %, blind to the other's answer.
 2. **Cross-evaluation (parallel)** — each model reviews the OTHER's hypothesis
    against its own and states what's right/wrong and why.

@@ -1,19 +1,16 @@
 # RougeXHunter — Agentic OS Quick Start
 
-Multi-Agent Peer-Review & Code Optimization Engine. Claude Opus 5 (`claude -p`,
-author), Hermes (OpenRouter, model configurable, independent verifier), and
+Multi-Agent Peer-Review & Code Optimization Engine. Claude (`claude -p`,
+author), a fresh Claude process as the Reviewer (independent verifier), and
 Gemini (Google Generative Language API, planner + second reviewer) draft,
 plan, cross-examine, and verify RougeXHunter code before it lands. Full
-architecture: `CLAUDE.md` / `HERMES.md` / `GEMINI.md` /
+architecture: `CLAUDE.md` / `GEMINI.md` /
 `templates/REVIEW_RUBRIC.md`.
 
 ## Prerequisites
 - Node.js 18+ (you have Node 24 — fine).
 - [Claude Code CLI](https://docs.claude.com) installed and on PATH: `claude --version`
   should print a version. If it's elsewhere, set `CLAUDE_BIN` in `.env`.
-- An [OpenRouter](https://openrouter.ai/keys) API key. The model Hermes uses
-  is configurable (`OX_ALPHA_MODEL` in `.env`) — see `.env.example` for the
-  current recommendation and why it's changed before.
 - A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
   — free tier, no card required. **Not** the same as a Gemini Advanced/Google
   AI Pro subscription, which does not include API access at all.
@@ -25,7 +22,7 @@ architecture: `CLAUDE.md` / `HERMES.md` / `GEMINI.md` /
 ```bash
 npm install
 cp .env.example .env
-# then edit .env: paste your real OPENROUTER_API_KEY
+# then edit .env: paste your real GEMINI_API_KEY
 ```
 
 ## Launch everything
@@ -69,7 +66,7 @@ needed) or view it embedded in the dashboard's Section 4.
 ## Game notes (Obsidian)
 `GameNotes/` at the repo root is an Obsidian vault — open that folder
 directly in Obsidian. Start at `GameNotes/00-Home.md`. Every
-`dual-code`/`dual-refactor`/`dual-debug` run, nightly audit, and weekly
+`dual-code`/`dual-refactor`/`dual-debug` run and weekly
 cleanup automatically appends a line to that day's note under
 `GameNotes/Daily/<date>.md` (via `scripts/lib/routerSync.js`) — no manual
 step. The top `## Summary` section of each daily note is yours to fill in
@@ -84,8 +81,6 @@ See `GameNotes/Process/Session-Documentation.md`.
 ## Scheduled routines
 Handled by the `agentic-os-scheduler` PM2 process (`scripts/routines/scheduler.js`,
 node-cron — cross-platform, no OS Task Scheduler needed):
-- Nightly (`NIGHTLY_AUDIT_CRON`, default 02:00): Hermes scans the day's Git
-  commits against the rubric → `output/reviews/nightly/<date>.md`.
 - Weekly (`WEEKLY_CLEANUP_CRON`, default Sun 03:00): Claude reads unresolved
   nightly reports + stale router references → **proposal only** at
   `output/reviews/weekly/<date>_proposal.md`. Run manually with `--apply` if
@@ -105,13 +100,13 @@ Windows Task Scheduler or cron instead of the PM2 scheduler.
 Two architecture fixes worth knowing about, both grounded in published
 multi-agent research (cited in full in `templates/REVIEW_RUBRIC.md`):
 
-1. **Hermes verifies independently, not Claude.** Earlier versions gated the
+1. **Reviewer verifies independently, not Claude.** Earlier versions gated the
    final write on Claude's own `REMAINING_CRITICAL_ISSUES` self-report — the
    same model checking its own work. Research on LLM self-correction
    (Huang et al., ICLR 2024) shows this is unreliable: without new
    information, self-review changes correct answers to wrong ones about as
-   often as the reverse. Now Hermes re-reviews every refined file from
-   scratch after Stage 3, and Hermes's count is what gates Stage 4 — Claude's
+   often as the reverse. Now Reviewer re-reviews every refined file from
+   scratch after Stage 3, and Reviewer's count is what gates Stage 4 — Claude's
    self-report is kept in the log for transparency only.
 2. **Real lint evidence, not just re-reading code as text.** When `selene` or
    `luau-analyze` is on PATH, its actual output is injected into every
@@ -122,7 +117,7 @@ multi-agent research (cited in full in `templates/REVIEW_RUBRIC.md`):
    pass of the same text.
 3. **Router writes are now lock-safe.** Two overlapping runs (say, a manual
    trigger during the nightly audit) used to be a lost-update race on
-   `CLAUDE.md`/`HERMES.md` — last write wins, one run's history silently
+   `CLAUDE.md` — last write wins, one run's history silently
    disappears. `scripts/lib/routerSync.js` now takes a per-file lockfile
    around each read-modify-write, so concurrent runs queue instead of
    clobbering each other.
@@ -134,16 +129,16 @@ multi-agent research (cited in full in `templates/REVIEW_RUBRIC.md`):
 5. **Gemini plans and reviews, but doesn't get a second vote.** Gemini gives
    an independent first read before code exists (a plan for `dual-code`, a
    priority profile for `dual-refactor`, a third hypothesis for `dual-debug`)
-   and a second independent critique alongside Hermes after Claude drafts or
+   and a second independent critique alongside Reviewer after Claude drafts or
    refines. Its findings must be addressed in the next revision — but the
-   write-gate stays single-owner: Hermes's count, not a two-verifier
+   write-gate stays single-owner: Reviewer's count, not a two-verifier
    consensus. See `templates/REVIEW_RUBRIC.md` § External Evidence and
    Independent Verification, rule 3, for why that's a deliberate choice and
    not an oversight. Calls degrade gracefully: if `GEMINI_API_KEY` isn't set
-   or a call fails, the pipeline logs it and continues with Claude/Hermes
+   or a call fails, the pipeline logs it and continues with Claude/Reviewer
    alone rather than blocking a run on a third engineer being unavailable.
 
-Cost tradeoff: each refinement round now makes one extra Hermes call (the
+Cost tradeoff: each refinement round now makes one extra Reviewer call (the
 independent verification) plus, in most stages, a parallel Gemini call. Both
 exist to make the write-gate harder to game with a confident-sounding
 self-report or a single reviewer's blind spot — worth it for anything

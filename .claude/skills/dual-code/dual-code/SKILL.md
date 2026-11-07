@@ -1,6 +1,6 @@
 ---
 name: dual-code
-description: End-to-end 3-stage Claude/Hermes co-optimization loop for a NEW feature or system. Use when the user wants a new Luau service, controller, or state machine built and adversarially reviewed before it lands.
+description: End-to-end 3-stage Claude/Reviewer co-optimization loop for a NEW feature or system. Use when the user wants a new Luau service, controller, or state machine built and adversarially reviewed before it lands.
 ---
 
 # /dual-code
@@ -14,7 +14,7 @@ before landing (not a quick throwaway snippet).
 ## Handoff (must happen in this order)
 1. **Claude (Stage 1)** — implement from the prompt + `templates/REVIEW_RUBRIC.md`.
    State state machines and Remote/API contracts explicitly.
-2. **Hermes/Ox Alpha (Stage 2)** — adversarial audit: race conditions, listener
+2. **Reviewer (Stage 2)** — adversarial audit: race conditions, listener
    leaks, state sync, GC/perf, edge cases. Diff-style patches, severity-tagged.
 3. **Claude (Stage 3)** — resolve every CRITICAL/MAJOR, merge valid perf fixes,
    verify compatibility with `Types.luau`/`Constants.luau`/`Remotes.luau`.
@@ -27,7 +27,7 @@ before landing (not a quick throwaway snippet).
 - In: `--prompt "<feature request>"` `[--target <relative/path.luau>]`
 - Out: `output/reviews/<timestamp>_dual-code/` (full transcript + summary.json),
   `output/artifacts/<run-id>__<file>` (final code), `runs.log` (tail).
-- Router update: `CLAUDE.md` and `HERMES.md` get a "Recent Automated Changes"
+- Router update: `CLAUDE.md` get a "Recent Automated Changes"
   entry automatically (`scripts/lib/routerSync.js`) — same run, no manual step.
 
 ## Command
@@ -36,7 +36,7 @@ node scripts/co_optimizer.js --mode dual-code --prompt "..." [--target src/...] 
 ```
 
 ## NEVER DO
-- NEVER skip Stage 2 (Hermes) — code that never faced adversarial review does
+- NEVER skip Stage 2 (Reviewer) — code that never faced adversarial review does
   not count as co-optimized.
 - NEVER write to the live target file without `--apply` explicitly passed.
 - NEVER declare 0 critical issues without the machine-readable

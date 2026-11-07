@@ -136,7 +136,7 @@ async function logToObsidianDaily(entry) {
 
 /**
  * @param {{runId:string, action:string, file:string, note?:string}} entry
- * @param {string[]} routerRelPaths - e.g. ['CLAUDE.md', 'HERMES.md', 'memory/routers/SYSTEMS.md']
+ * @param {string[]} routerRelPaths - e.g. ['CLAUDE.md', 'memory/routers/SYSTEMS.md']
  */
 async function syncRouters(entry, routerRelPaths) {
   // Sequential, not Promise.all: two routers sharing no lock could still race

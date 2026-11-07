@@ -1,7 +1,7 @@
 # RougeXHunter — Dual-Agent Review Rubric
 
 Shared, non-negotiable standard for all three peer engineers — Claude Opus 5
-(author), Hermes/Ox Alpha (independent verifier), and Gemini (planner and
+(author), Reviewer (independent verifier), and Gemini (planner and
 second reviewer). Every critique and every refinement is graded against this
 file. A finding tagged `CRITICAL` blocks the final write until resolved.
 
@@ -61,7 +61,7 @@ Two rules the orchestrator enforces in code, not just policy:
 
 1. **The proposer never certifies its own "done."** Claude may self-report a
    `REMAINING_CRITICAL_ISSUES` count after refining code, but that number is
-   informational only. Hermes — the reviewer, not the author — independently
+   informational only. Reviewer — the reviewer, not the author — independently
    re-counts against the same code, and *that* count is what gates whether
    anything gets written. An LLM re-reviewing its own recent output tends to
    rubber-stamp it; a second, independent pass catches what self-review
@@ -78,10 +78,10 @@ asked to check their own reasoning without new information change *correct*
 answers to *incorrect* ones about as often as the reverse.
 
 3. **A second opinion is not a second gate.** Gemini plans before code exists
-   and reviews alongside Hermes after it does — every CRITICAL/MAJOR finding
-   Gemini raises must be addressed in the next revision, same as Hermes's.
-   But the write-gate itself stays single-owner: Hermes's independent count,
-   not a Hermes+Gemini consensus or vote. Splitting the gate across two
+   and reviews alongside Reviewer after it does — every CRITICAL/MAJOR finding
+   Gemini raises must be addressed in the next revision, same as Reviewer's.
+   But the write-gate itself stays single-owner: Reviewer's independent count,
+   not a Reviewer+Gemini consensus or vote. Splitting the gate across two
    verifiers trades a clear, testable authority for deadlock risk and doubled
    cost, without a demonstrated correctness win over one dedicated,
    evidence-grounded verifier.
@@ -103,7 +103,7 @@ answers to *incorrect* ones about as often as the reverse.
 ## Golden Rule
 Whenever a file is created, modified, or moved during a co-optimization run,
 the agent that touched it updates the relevant router (`CLAUDE.md`,
-`HERMES.md`, `GEMINI.md`, or the matching `memory/routers/*.md`) **in the
+`GEMINI.md`, or the matching `memory/routers/*.md`) **in the
 same turn**.
 Router writes go through a per-file lockfile (`scripts/lib/routerSync.js`) so
 two overlapping runs (e.g. a manual trigger during the nightly audit) can't
