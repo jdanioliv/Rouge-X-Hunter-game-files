@@ -47,6 +47,8 @@ local function startGrip(attacker: Player, victim: Player)
 		return
 	end
 	activeGrips[attacker] = { victim = victim, endsAt = os.clock() + Constants.GRIP_DURATION_SECONDS }
+	PlayerStateService.RefreshCombatTag(attacker)
+	PlayerStateService.RefreshCombatTag(victim)
 	sendFeedback(attacker, "GripStarted")
 	sendFeedback(victim, "Gripped")
 	broadcast(attacker, "GripStart")
@@ -75,15 +77,43 @@ local function landGrip(attacker: Player, victim: Player)
 	PlayerStateService.LoseSoulNode(victim, "grip")
 end
 
-local function isTooFarApart(attacker: Player, victim: Player): boolean
-	local attackerCharacter = attacker.Character
-	local victimCharacter = victim.Character
-	local attackerRoot = attackerCharacter and attackerCharacter:FindFirstChild("HumanoidRootPart")
-	local victimRoot = victimCharacter and victimCharacter:FindFirstChild("HumanoidRootPart")
-	if not attackerRoot or not victimRoot then
-		return true
+-- nil when either character has no root part.
+local function distanceBetween(first: Player, second: Player): number?
+	local firstCharacter = first.Character
+	local secondCharacter = second.Character
+	local firstRoot = firstCharacter and firstCharacter:FindFirstChild("HumanoidRootPart")
+	local secondRoot = secondCharacter and secondCharacter:FindFirstChild("HumanoidRootPart")
+	if not firstRoot or not secondRoot then
+		return nil
 	end
-	return (attackerRoot.Position - victimRoot.Position).Magnitude > Constants.GRIP_BREAK_DISTANCE
+	return (firstRoot.Position - secondRoot.Position).Magnitude
+end
+
+local function isTooFarApart(attacker: Player, victim: Player): boolean
+	local distance = distanceBetween(attacker, victim)
+	return distance == nil or distance > Constants.GRIP_BREAK_DISTANCE
+end
+
+-- The Grip key: the closest downed player in reach, if any. Melee never starts a Grip.
+local function handleGrip(attacker: Player)
+	if not PlayerStateService.CanAttack(attacker) then
+		return
+	end
+	local target = nil
+	local closest = Constants.GRIP_START_DISTANCE
+	for _, other in Players:GetPlayers() do
+		local otherState = PlayerStateService.GetState(other)
+		if other ~= attacker and otherState and otherState.isDowned and not otherState.isBeingGripped then
+			local distance = distanceBetween(attacker, other)
+			if distance and distance <= closest and PlayerStateService.IsCharacterAlive(other) then
+				target = other
+				closest = distance
+			end
+		end
+	end
+	if target then
+		startGrip(attacker, target)
+	end
 end
 
 local function stepGrips()
@@ -189,20 +219,13 @@ local function resolveHitOnPlayer(attacker: Player, victim: Player)
 		return
 	end
 
-	-- A corpse waiting to respawn is not a target: no more nodes to take from it.
-	if not PlayerStateService.IsCharacterAlive(victim) then
+	-- A corpse is not a target, and a downed player can only be Gripped, with the Grip key.
+	if not PlayerStateService.IsCharacterAlive(victim) or victimState.isDowned then
 		return
 	end
 
 	PlayerStateService.RefreshCombatTag(attacker)
 	PlayerStateService.RefreshCombatTag(victim)
-
-	-- Grip finisher: striking a downed target starts a Grip, which destroys a Soul Node
-	-- if it finishes (GDD section 2).
-	if victimState.isDowned then
-		startGrip(attacker, victim)
-		return
-	end
 
 	-- Parry check: negates all damage, frame-traps the attacker, and inflicts
 	-- heavy posture damage on them (GDD section 8).
@@ -291,6 +314,8 @@ local function onCombatIntent(player: Player, intent)
 		if PlayerStateService.SetBlocking(player, false) then
 			broadcast(player, "BlockEnd")
 		end
+	elseif intent.action == "Grip" then
+		handleGrip(player)
 	end
 end
 
@@ -325,11 +350,25 @@ function CombatService.Init()
 	end)
 
 	-- This fires before ApplyDamage can down the attacker, so the Grip is released
-	-- before EnterDownedState records their walk speed.
+	-- before EnterDownedState records their walk speed. Only a hit restarts the victim's
+	-- recovery. A Grip broken any other way lets their healing carry on.
 	PlayerStateService.PlayerDamaged:Connect(function(player)
 		local grip = activeGrips[player]
 		if grip then
-			breakGrip(player, grip.victim)
+			local victim = grip.victim
+			breakGrip(player, victim)
+			PlayerStateService.RestartDownedRecovery(victim)
+		end
+	end)
+
+	-- Quitting during a Grip costs what the Grip would have. This runs before the final
+	-- save, and on the last Soul Node it wipes the character.
+	PlayerStateService.PlayerLeaving:Connect(function(player)
+		for attacker, grip in activeGrips do
+			if grip.victim == player then
+				landGrip(attacker, player)
+				return
+			end
 		end
 	end)
 

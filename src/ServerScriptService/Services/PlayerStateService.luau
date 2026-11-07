@@ -636,6 +636,15 @@ function PlayerStateService.EndGrip(attacker: Player, victim: Player)
 	end
 end
 
+-- A hit on the attacker breaks a Grip at a cost: the victim starts their recovery again.
+function PlayerStateService.RestartDownedRecovery(player: Player)
+	local state = states[player]
+	if state and state.isDowned then
+		state.hp = 0
+		state.nextDownedHealAt = os.clock() + Constants.DOWNED_REGEN_INTERVAL
+	end
+end
+
 -- Strips a soul node (Grip finisher, awakening failure, or future
 -- disconnect payload). Kills the character; at 0 nodes triggers the wipe path.
 function PlayerStateService.LoseSoulNode(player: Player, reason: string)

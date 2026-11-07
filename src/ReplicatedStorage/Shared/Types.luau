@@ -166,7 +166,7 @@ export type PersistedData = {
 
 -- Client -> server combat intent payload.
 export type CombatIntent = {
-	action: "Attack" | "Parry" | "BlockStart" | "BlockEnd",
+	action: "Attack" | "Parry" | "BlockStart" | "BlockEnd" | "Grip",
 }
 
 -- Client -> server aura intent payload.

@@ -12,9 +12,11 @@ local Constants = {
 	DOWNED_REGEN_FRACTION = 0.0875, -- share of max HP regained per heal (owner's range: 7-10%)
 	DOWNED_REGEN_INTERVAL = 1.5, -- seconds between heals
 	DOWNED_RECOVER_HP_FRACTION = 0.35, -- share of max HP at which they get back up
-	-- A Grip is timed (owner's range: 2.5-3 s). The victim's healing pauses during it, and
-	-- any damage to the attacker breaks it.
+	-- A Grip is timed (owner's range: 2.5-3 s) and starts on the Grip key, right next to a
+	-- downed player. Their healing pauses during it. Damage to the attacker breaks it and
+	-- sends the victim's health and downed timer back to the start.
 	GRIP_DURATION_SECONDS = 2.75,
+	GRIP_START_DISTANCE = 6, -- studs; how close the attacker must be to start
 	GRIP_BREAK_DISTANCE = 14, -- studs; pushed further apart than this, the Grip breaks
 	-- Normal regen runs only outside combat, so it starts when the combat tag ends.
 	NORMAL_REGEN_FRACTION_PER_SECOND = 0.025, -- share of max HP per second (owner's range: 2.5-5%)

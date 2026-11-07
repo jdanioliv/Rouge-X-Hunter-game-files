@@ -33,7 +33,7 @@ local ANIMATION_CONFIG = {
 	Stagger = "rbxassetid://0", -- got parried / frame-trapped
 	GuardBreak = "rbxassetid://0",
 	Downed = "rbxassetid://0",
-	Gripping = "rbxassetid://0", -- owner's Grip animation, about 2.5-3 s
+	Gripping = "rbxassetid://0", -- throat slash for now, about 2.5-3 s
 }
 
 local PLACEHOLDER = "rbxassetid://0"

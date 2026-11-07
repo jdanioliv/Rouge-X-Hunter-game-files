@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local StarterGui = game:GetService("StarterGui")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared:WaitForChild("Remotes"))
@@ -152,6 +153,24 @@ flashLabel.Parent = screenGui
 -- Track the combat tag as an end-time so the countdown ticks smoothly
 -- between 10 Hz snapshots.
 local combatTagEndsAt = 0
+local isDowned = false
+
+-- Roblox's Reset button (Esc menu) is off while in combat or downed, so it cannot dodge
+-- a Grip. SetCore fails until the core scripts are ready, so this retries each frame
+-- until the button matches.
+local resetButtonEnabled = true
+
+local function updateResetButton(wanted: boolean)
+	if wanted == resetButtonEnabled then
+		return
+	end
+	local ok = pcall(function()
+		StarterGui:SetCore("ResetButtonCallback", wanted)
+	end)
+	if ok then
+		resetButtonEnabled = wanted
+	end
+end
 
 snapshotRemote.OnClientEvent:Connect(function(snapshot)
 	hpFill.Size = UDim2.fromScale(math.clamp(snapshot.hp / snapshot.maxHp, 0, 1), 1)
@@ -173,10 +192,12 @@ snapshotRemote.OnClientEvent:Connect(function(snapshot)
 	soulLabel.Text = `Soul Nodes: {snapshot.soulNodes}   Money: {snapshot.money}   Memory: {snapshot.memorySlotsUsed}/{snapshot.memorySlotCap}`
 
 	combatTagEndsAt = os.clock() + snapshot.combatTagRemaining
+	isDowned = snapshot.isDowned == true
 end)
 
 RunService.RenderStepped:Connect(function()
 	local remaining = combatTagEndsAt - os.clock()
+	updateResetButton(remaining <= 0 and not isDowned)
 	if remaining > 0 then
 		combatTagLabel.Visible = true
 		combatTagLabel.Text = `IN COMBAT  {string.format("%.1f", remaining)}s`

@@ -232,6 +232,7 @@ This project relies on **Rojo** for external code editing in modern code editors
 | **Melee Combat**      | `Left Mouse Button`   | Light Attack Combo                              |
 | **Defensive**         | `F` (Tap)             | Timed Parry (10-frame activation window)        |
 | **Defensive**         | `F` (Hold)            | Block / Guard Stance                            |
+| **Finisher**          | `B`                   | Grip a downed player right next to you          |
 | **Aura Principles**   | `T`                   | Toggle **Ten** (Aura Enclosure)                 |
 | **Aura Principles**   | `G`                   | Toggle **Ren** (Aura Output)                    |
 | **Aura Principles**   | `Z`                   | Toggle **Zetsu** (Aura Suppression)             |

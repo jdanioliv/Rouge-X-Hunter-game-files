@@ -39,11 +39,8 @@ Todo lo hecho y documentado hasta el 2026-11-06, y cómo seguir desde cualquier 
 - **La web está en pausa.** No la empieces hasta que el dueño lo pida expresamente en esa sesión. "Sigue con esto" nunca basta. Pregúntale.
 - **El trabajo en el juego ya empezó.** El 2026-11-06 pidió arreglar cuanto antes el código contradictorio. Los arreglos siguen en una rama. Para funciones nuevas, "sigue con esto" solo basta si responde a una propuesta concreta tuya en esa misma sesión.
 - **Feedback constante.** Pidió crítica honesta en cada sesión: "the more feedback the better". Añádela a `Feedback/Project-Feedback.md` y da lo más importante en tu último mensaje, sin suavizarla.
-- **El GDD queda para casa.** Pidió hablar de él "once im home".
-  - En la nube, supón que está en clase hasta que diga lo contrario.
-  - Si pregunta por lo pendiente, di solo "queda un tema que pediste dejar para casa".
-  - Cuando diga que está en casa, recuérdaselo enseguida.
-  - Si aparece, pídele que lo suba o que abra una sesión en su PC. Va en `Reference/GDD.md` del vault. Compáralo con `Reference/GDD-Section-Map` y no cambies código por ello sin que lo pida.
+- **No existía ningún GDD.** Lo confirmó el 2026-11-07, y el pendrive no tiene nada más. Lo estamos escribiendo juntos en `Reference/GDD.md` del vault, con una pequeña historia de fondo: cada jugador crea su personaje y recibe fragmentos de lore. Nada de la sección 7 está decidido hasta que él elija.
+- **Muy inspirado en Hunter x Hunter, con Nen en el centro.** Lo decidió el 2026-11-07. Los nombres visibles siguen abiertos antes del lanzamiento, porque el juego dará dinero.
 - **El nombre es Rouge,** no Rogue. Su brief dice "Rogue X Hunter": corrígelo si reutilizas ese texto.
 - **El juego va a dar dinero.** Cómo, todavía no está decidido.
 - **Responde en el idioma de su último mensaje.** Escribe en español o en inglés.
@@ -144,25 +141,28 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 | Caído: cura cada 1,5 s y se levanta al 35%, unos 6 s (4 curas de 8,75%) | 2026-11-06 |
 | Regeneración normal solo fuera de combate, 2,5-5% por segundo, ajustable. El código usa 2,5% | 2026-11-06 |
 | El modo descanso solo existe en hogueras: sienta al jugador y cura bien con el tiempo. Aún no está hecho | 2026-11-06 |
-| El Grip dura 2,75 s (rango del dueño: 2,5-3). La curación de la víctima se pausa, y golpear al atacante lo rompe | 2026-11-07 |
-| El HUD combina el hexágono con la vida abajo (Hex Line). Falta confirmar | 2026-11-07 |
+| El Grip se inicia con B junto a un caído y dura 2,75 s. La curación de la víctima se pausa | 2026-11-07 |
+| Golpear al atacante rompe el Grip, y la vida y el tiempo en el suelo de la víctima vuelven a empezar | 2026-11-07 |
+| Salir del juego durante un Grip quita un nodo, o borra si era el último | 2026-11-07 |
+| El botón Reset de Roblox se desactiva en combate | 2026-11-07 |
+| El HUD lleva el hexágono abajo a la izquierda y la vida abajo. Las vistas previas de estados se quedan por ahora | 2026-11-07 |
 
 **Preguntas abiertas para el dueño**
-1. **Para cuando esté en casa:** ¿dónde está el GDD? Debería mirar en su pendrive.
+1. ¿Qué premisa de historia elige? Ver `Reference/GDD.md`, sección 7. Recomiendo A como escenario y B como misterio.
 2. ¿Cómo gana dinero el juego: solo cosméticos, o también poder? Recomiendo solo cosméticos.
 3. ¿Se mantiene la identidad de Hunter x Hunter, o se usan nombres y mundo propios? Recomiendo nombres propios. No bloquea W0 ni W1, porque los nombres visibles irán en una sola tabla, pero hay que decidirlo antes de publicar la web o crear arte.
 4. ¿Se ha jugado alguna vez el juego en Studio? No hay registro.
 5. ¿`prototype_scale.rbxl`, en sus Documentos, tiene que ver con este juego?
 6. ¿El builder es más importante de lo que asumí? Lo puse después del quiz y las sugerencias porque depende de un catálogo de habilidades que no existe.
 7. ¿Dónde alojar la web?
-8. ¿Le vale la opción D del HUD (Hex Line), en https://claude.ai/artifact/4q1AgAQEKPvQ8oWHjnA82W (privado)? Faltan los espacios de habilidades.
-9. Botón Reset de Roblox: ¿se desactiva? Pulsarlo durante un Grip ya no sirve, pero antes del Grip sigue evitándolo.
+8. Salir del juego estando caído, antes de un Grip, no cuesta nada. ¿Debe costar un nodo?
+9. "Golpear" lo interpreté como golpear al atacante, no a la víctima. Debe confirmarlo en la prueba.
 
 ## Lo más importante que encontramos
 - **El árbol de habilidades no afecta al juego.** Comprar un nodo gasta memoria y sube un contador que se guarda y la interfaz muestra, pero ninguna lógica de juego lo usa: `GetLearnedNodes` no tiene llamadas (`NenAffinityService.luau:123`). Tampoco hay habilidades con nombre. Es la mayor carencia de diseño, y bloquea el builder.
 - **No consta que el juego se haya ejecutado.** El commit `fca5dd2` dice que meditación y adivinación no se probaron, y no hay registro de pruebas del resto. No hay tests, ni linter, ni `aftman.toml`. 19 de los 28 archivos Luau no tienen `--!strict`.
 - **No hay mundo.** Ningún repo tiene un archivo de lugar. Para probar el despertar hay que etiquetar piezas a mano en Studio. La ruleta pide además poner `AUTO_AWAKEN_DEBUG` en `false` en local: con `true`, el NPC siempre responde `AlreadyAwakened` (`NenAwakeningService.luau:105-108`). No subas ese cambio, porque `CLAUDE.md` pide conservar el flag.
-- **Falta el GDD.** Unos 40 comentarios del código lo citan.
+- **El GDD acaba de empezar.** Unos 40 comentarios del código citaban uno que nunca existió. La versión 0 mantiene esos números de sección.
 - **La limpieza semanal nunca funcionó,** aunque el registro diga lo contrario. Sus tres informes solo contienen "Failed to spawn 'claude'".
 - **La auditoría nocturna nunca ha revisado nada.** Solo mira archivos `.luau` cambiados en las últimas 24 horas (`nightly_code_audit.js:19-21`), y sus 40 ejecuciones registradas no encontraron ninguno.
 - **Lo mejor del proyecto:** el presupuesto de Seiyaku, la arquitectura con el servidor como autoridad, y los dos caminos de despertar.
@@ -171,8 +171,8 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 Encontrados leyendo el código, sin reproducirlos jugando. Los archivos están en `src/ServerScriptService/Services/`, y las líneas pueden moverse. **Los de esta lista están arreglados en `claude/2026-11-05-fix-contradictions`, sin fusionar ni probar. Las citas describen `main`.**
 
 **Sigue abierto, también en la rama:**
-- Resetear (Esc → Reset) estando caído, antes de que empiece el Grip, parece evitarlo. Durante el Grip ya no sirve. Sin probar.
-- Salir estando caído evita el Grip, porque el castigo por desconectarse en combate no existe aún.
+- Salir estando caído, antes de que empiece el Grip, lo evita. El castigo por desconectarse en combate aún no existe.
+- El botón Reset se desactiva solo en el cliente. Un cliente modificado podría seguir matándose para evitar un Grip.
 - Los datos de depuración de Studio pueden llegar al almacén real.
 
 **Ponen en riesgo personajes o datos:**

@@ -6,6 +6,7 @@
 --   LMB          attack
 --   F (tap)      parry
 --   F (hold)     parry, then block for as long as it is held
+--   B            Grip a downed player right next to you
 --   T / G / Z / C / X   aura: Ten / Ren / Zetsu / Ken / None
 --   Ctrl + Mouse Wheel  adjust Ryu offense/defense ratio
 
@@ -75,6 +76,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		sendCombat("Attack")
 	elseif input.KeyCode == Enum.KeyCode.F then
 		beginDefend()
+	elseif input.KeyCode == Enum.KeyCode.B then
+		sendCombat("Grip")
 	elseif AURA_KEYBINDS[input.KeyCode] then
 		auraIntentRemote:FireServer({ auraState = AURA_KEYBINDS[input.KeyCode] })
 	end
