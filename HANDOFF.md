@@ -13,7 +13,7 @@ Todo lo hecho y documentado hasta el 2026-11-06, y cómo seguir desde cualquier 
 | En la nube se puede | En la nube no se puede |
 |---|---|
 | Leer y cambiar código en una rama | Probar el juego: no hay Roblox Studio |
-| Documentar y subir el vault, si añadiste su repo | Usar Hermes y Gemini: tu `.env` no está allí, y no debe estar |
+| Documentar y subir el vault, si añadiste su repo | Usar Gemini: tu `.env` no está allí, y no debe estar |
 | Reconstruir el grafo de conocimiento | Usar Blender, Ollama u Obsidian |
 | Empezar la web, cuando tú lo digas | Leer tu memoria local de Claude o los archivos de tu PC |
 
@@ -51,7 +51,7 @@ Todo lo hecho y documentado hasta el 2026-11-06, y cómo seguir desde cualquier 
 - **Fusiona en `main` del juego solo con permiso expreso del dueño en esa sesión.** La nube no lo impide, así que depende de ti. La excepción son `HANDOFF.md` y `pending-vault-notes/`, que van directos a `main` con el script, porque si no la siguiente sesión leería una versión vieja. Si no está de acuerdo, quita esta excepción.
 - **El vault se sube a su `main`,** con `npm run vault:publish`.
 - **Web:** trabaja en la rama de la sesión, y sube a `main` solo con permiso. Sin vault no la empieces, porque el plan vive allí.
-- **El pipeline de revisión no funciona en la nube.** La sección 5 de `CLAUDE.md` no se puede cumplir sin las claves. Todo cambio no trivial del juego se queda en una rama sin fusionar. Anótalo en la tabla de abajo, y di en tu último mensaje que no tuvo plan de Gemini ni revisión de Hermes.
+- **El pipeline de revisión no funciona en la nube.** La sección 5 de `CLAUDE.md` no se puede cumplir sin las claves. Todo cambio no trivial del juego se queda en una rama sin fusionar. Anótalo en la tabla de abajo, y pide la revisión a un subagente de Claude nuevo. Hermes se eliminó por orden del dueño el 2026-11-07: no lo uses, ni OpenRouter.
 - **Mientras un arreglo no esté fusionado,** la nota del vault dice "arreglado en la rama X, sin fusionar", y sus citas siguen apuntando a `main`.
 - **`--!strict`:** no lo añadas a un archivo existente dentro de un arreglo, porque sin verificador no puedes comprobarlo. Los archivos nuevos sí lo llevan.
 - **Routers:** si creas, cambias o mueves un archivo, actualiza a mano el router que corresponda en `memory/routers/`.
@@ -148,6 +148,7 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 | El HUD lleva el hexágono abajo a la izquierda y la vida abajo. Las vistas previas de estados se quedan por ahora | 2026-11-07 |
 
 **Preguntas abiertas para el dueño**
+0. **Prueba en Studio:** el dueño la hará cuando conecte este chat al MCP integrado de Roblox Studio (Assistant > ... > Manage MCP Servers). Trato hecho el 2026-11-07. La app de escritorio Hermes sigue instalada hasta que confirme si se borra.
 1. ¿Qué premisa de historia elige? Ver `Reference/GDD.md`, sección 7. Recomiendo A como escenario y B como misterio.
 2. ¿Cómo gana dinero el juego: solo cosméticos, o también poder? Recomiendo solo cosméticos.
 3. ¿Se mantiene la identidad de Hunter x Hunter, o se usan nombres y mundo propios? Recomiendo nombres propios. No bloquea W0 ni W1, porque los nombres visibles irán en una sola tabla, pero hay que decidirlo antes de publicar la web o crear arte.
@@ -164,7 +165,7 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 - **No hay mundo.** Ningún repo tiene un archivo de lugar. Para probar el despertar hay que etiquetar piezas a mano en Studio. La ruleta pide además poner `AUTO_AWAKEN_DEBUG` en `false` en local: con `true`, el NPC siempre responde `AlreadyAwakened` (`NenAwakeningService.luau:105-108`). No subas ese cambio, porque `CLAUDE.md` pide conservar el flag.
 - **El GDD acaba de empezar.** Unos 40 comentarios del código citaban uno que nunca existió. La versión 0 mantiene esos números de sección.
 - **La limpieza semanal nunca funcionó,** aunque el registro diga lo contrario. Sus tres informes solo contienen "Failed to spawn 'claude'".
-- **La auditoría nocturna nunca ha revisado nada.** Solo mira archivos `.luau` cambiados en las últimas 24 horas (`nightly_code_audit.js:19-21`), y sus 40 ejecuciones registradas no encontraron ninguno.
+- **La auditoría nocturna se eliminó** el 2026-11-07 junto con Hermes. Nunca llegó a revisar nada.
 - **Lo mejor del proyecto:** el presupuesto de Seiyaku, la arquitectura con el servidor como autoridad, y los dos caminos de despertar.
 
 ## Bugs conocidos
