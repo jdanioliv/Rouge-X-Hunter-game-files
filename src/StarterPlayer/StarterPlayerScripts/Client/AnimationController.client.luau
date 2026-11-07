@@ -33,6 +33,7 @@ local ANIMATION_CONFIG = {
 	Stagger = "rbxassetid://0", -- got parried / frame-trapped
 	GuardBreak = "rbxassetid://0",
 	Downed = "rbxassetid://0",
+	Gripping = "rbxassetid://0", -- owner's Grip animation, about 2.5-3 s
 }
 
 local PLACEHOLDER = "rbxassetid://0"
@@ -80,7 +81,7 @@ local function buildTracks(character: Model)
 			table.insert(cache.swingWeights, entry.weight)
 		end
 	end
-	for _, name in { "Parry", "Stagger", "GuardBreak", "Downed" } do
+	for _, name in { "Parry", "Stagger", "GuardBreak", "Downed", "Gripping" } do
 		cache.named[name] = loadTrack(animator, ANIMATION_CONFIG[name], false)
 	end
 	cache.named.BlockIdle = loadTrack(animator, ANIMATION_CONFIG.BlockIdle, true)
@@ -198,6 +199,12 @@ local BROADCAST_HANDLERS = {
 	end,
 	BlockEnd = function(character)
 		stopNamed(character, "BlockIdle")
+	end,
+	GripStart = function(character)
+		playNamed(character, "Gripping")
+	end,
+	GripEnd = function(character)
+		stopNamed(character, "Gripping")
 	end,
 }
 

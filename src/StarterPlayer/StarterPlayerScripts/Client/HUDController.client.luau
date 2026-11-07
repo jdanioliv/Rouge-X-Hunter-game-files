@@ -197,6 +197,9 @@ local FEEDBACK_STYLES = {
 	Downed = { text = "DOWNED", color = Color3.fromRGB(255, 60, 60) },
 	SoulNodeLost = { text = "SOUL NODE DESTROYED", color = Color3.fromRGB(180, 60, 255) },
 	Grip = { text = "GRIP EXECUTED", color = Color3.fromRGB(255, 60, 120) },
+	GripStarted = { text = "GRIPPING", color = Color3.fromRGB(255, 60, 120) },
+	Gripped = { text = "GRIPPED", color = Color3.fromRGB(255, 60, 120) },
+	GripBroken = { text = "GRIP BROKEN", color = Color3.fromRGB(120, 220, 255) },
 }
 
 local flashTween: Tween? = nil

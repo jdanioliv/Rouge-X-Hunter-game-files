@@ -115,6 +115,8 @@ export type PlayerState = {
 
 	isDowned: boolean,
 	nextDownedHealAt: number,
+	isGripping: boolean, -- performing a Grip finisher on a downed player
+	isBeingGripped: boolean,
 	isDead: boolean, -- killed by a Soul Node loss and waiting to respawn
 
 	lastAttackAt: number,
@@ -175,13 +177,13 @@ export type AuraIntent = {
 
 -- Server -> client combat feedback for HUD flashes.
 export type CombatFeedback = {
-	kind: "ParrySuccess" | "GotParried" | "GuardBreak" | "Hit" | "TookHit" | "Blocked" | "Downed" | "SoulNodeLost" | "Grip",
+	kind: "ParrySuccess" | "GotParried" | "GuardBreak" | "Hit" | "TookHit" | "Blocked" | "Downed" | "SoulNodeLost" | "Grip" | "GripStarted" | "Gripped" | "GripBroken",
 	amount: number?,
 }
 
 -- Server -> all clients: transient combat events for animation/VFX rendering.
 export type CombatBroadcast = {
-	kind: "Attack" | "Parry" | "Stagger" | "GuardBreak" | "Downed" | "Recovered" | "BlockStart" | "BlockEnd",
+	kind: "Attack" | "Parry" | "Stagger" | "GuardBreak" | "Downed" | "Recovered" | "BlockStart" | "BlockEnd" | "GripStart" | "GripEnd",
 	userId: number,
 }
 

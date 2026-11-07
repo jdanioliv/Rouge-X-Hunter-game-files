@@ -10,6 +10,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Constants)
@@ -33,6 +34,85 @@ end
 -- VFX controllers can render other players' actions.
 local function broadcast(player: Player, kind: string)
 	broadcastRemote:FireAllClients({ kind = kind, userId = player.UserId })
+end
+
+--------------------------------------------------------------------------------
+-- Grip finisher: timed, and the attacker can be hit out of it
+--------------------------------------------------------------------------------
+
+local activeGrips: { [Player]: { victim: Player, endsAt: number } } = {}
+
+local function startGrip(attacker: Player, victim: Player)
+	if not PlayerStateService.BeginGrip(attacker, victim) then
+		return
+	end
+	activeGrips[attacker] = { victim = victim, endsAt = os.clock() + Constants.GRIP_DURATION_SECONDS }
+	sendFeedback(attacker, "GripStarted")
+	sendFeedback(victim, "Gripped")
+	broadcast(attacker, "GripStart")
+end
+
+local function releaseGrip(attacker: Player, victim: Player)
+	activeGrips[attacker] = nil
+	PlayerStateService.EndGrip(attacker, victim)
+	broadcast(attacker, "GripEnd")
+end
+
+local function breakGrip(attacker: Player, victim: Player)
+	releaseGrip(attacker, victim)
+	if attacker.Parent then
+		sendFeedback(attacker, "GripBroken")
+	end
+	if victim.Parent then
+		sendFeedback(victim, "GripBroken")
+	end
+end
+
+local function landGrip(attacker: Player, victim: Player)
+	releaseGrip(attacker, victim)
+	sendFeedback(attacker, "Grip")
+	PlayerStateService.RefreshCombatTag(attacker)
+	PlayerStateService.LoseSoulNode(victim, "grip")
+end
+
+local function isTooFarApart(attacker: Player, victim: Player): boolean
+	local attackerCharacter = attacker.Character
+	local victimCharacter = victim.Character
+	local attackerRoot = attackerCharacter and attackerCharacter:FindFirstChild("HumanoidRootPart")
+	local victimRoot = victimCharacter and victimCharacter:FindFirstChild("HumanoidRootPart")
+	if not attackerRoot or not victimRoot then
+		return true
+	end
+	return (attackerRoot.Position - victimRoot.Position).Magnitude > Constants.GRIP_BREAK_DISTANCE
+end
+
+local function stepGrips()
+	local now = os.clock()
+	for attacker, grip in activeGrips do
+		local victim = grip.victim
+		local attackerState = PlayerStateService.GetState(attacker)
+		local victimState = PlayerStateService.GetState(victim)
+
+		if not attackerState or not victimState then
+			breakGrip(attacker, victim) -- one of them left the game
+		elseif not attackerState.isGripping or attackerState.isDowned or attackerState.isGuardBroken then
+			breakGrip(attacker, victim)
+		elseif not PlayerStateService.IsCharacterAlive(attacker) then
+			breakGrip(attacker, victim)
+		elseif not PlayerStateService.IsCharacterAlive(victim) then
+			-- isDead means something else already took a Soul Node. Without it the victim
+			-- pressed Reset, and that must not dodge a Grip already under way.
+			if victimState.isDead then
+				breakGrip(attacker, victim)
+			else
+				landGrip(attacker, victim)
+			end
+		elseif not victimState.isDowned or isTooFarApart(attacker, victim) then
+			breakGrip(attacker, victim)
+		elseif now >= grip.endsAt then
+			landGrip(attacker, victim)
+		end
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -117,10 +197,10 @@ local function resolveHitOnPlayer(attacker: Player, victim: Player)
 	PlayerStateService.RefreshCombatTag(attacker)
 	PlayerStateService.RefreshCombatTag(victim)
 
-	-- Grip finisher: striking a downed target destroys a Soul Node (GDD section 2).
+	-- Grip finisher: striking a downed target starts a Grip, which destroys a Soul Node
+	-- if it finishes (GDD section 2).
 	if victimState.isDowned then
-		sendFeedback(attacker, "Grip")
-		PlayerStateService.LoseSoulNode(victim, "grip")
+		startGrip(attacker, victim)
 		return
 	end
 
@@ -243,6 +323,17 @@ function CombatService.Init()
 	PlayerStateService.PlayerRecovered:Connect(function(player)
 		broadcast(player, "Recovered")
 	end)
+
+	-- This fires before ApplyDamage can down the attacker, so the Grip is released
+	-- before EnterDownedState records their walk speed.
+	PlayerStateService.PlayerDamaged:Connect(function(player)
+		local grip = activeGrips[player]
+		if grip then
+			breakGrip(player, grip.victim)
+		end
+	end)
+
+	RunService.Heartbeat:Connect(stepGrips)
 end
 
 return CombatService

@@ -144,7 +144,8 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 | Caído: cura cada 1,5 s y se levanta al 35%, unos 6 s (4 curas de 8,75%) | 2026-11-06 |
 | Regeneración normal solo fuera de combate, 2,5-5% por segundo, ajustable. El código usa 2,5% | 2026-11-06 |
 | El modo descanso solo existe en hogueras: sienta al jugador y cura bien con el tiempo. Aún no está hecho | 2026-11-06 |
-| El Grip dura unos 2,5-3 s de animación. El código aún lo aplica al instante | 2026-11-06 |
+| El Grip dura 2,75 s (rango del dueño: 2,5-3). La curación de la víctima se pausa, y golpear al atacante lo rompe | 2026-11-07 |
+| El HUD combina el hexágono con la vida abajo (Hex Line). Falta confirmar | 2026-11-07 |
 
 **Preguntas abiertas para el dueño**
 1. **Para cuando esté en casa:** ¿dónde está el GDD? Debería mirar en su pendrive.
@@ -154,9 +155,8 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 5. ¿`prototype_scale.rbxl`, en sus Documentos, tiene que ver con este juego?
 6. ¿El builder es más importante de lo que asumí? Lo puse después del quiz y las sugerencias porque depende de un catálogo de habilidades que no existe.
 7. ¿Dónde alojar la web?
-8. ¿Qué diseño de HUD se elige? Hay tres opciones en https://claude.ai/artifact/4q1AgAQEKPvQ8oWHjnA82W (privado). Recomiendo Center Line.
-9. Botón Reset de Roblox: ¿se desactiva? El dueño entendió "descansar", así que la pregunta sigue abierta.
-10. Grip de 2,5-3 s: ¿sigue curando la víctima mientras la agarran, y se puede interrumpir? Con 6 s en el suelo decide si un Grip tardío llega a tiempo.
+8. ¿Le vale la opción D del HUD (Hex Line), en https://claude.ai/artifact/4q1AgAQEKPvQ8oWHjnA82W (privado)? Faltan los espacios de habilidades.
+9. Botón Reset de Roblox: ¿se desactiva? Pulsarlo durante un Grip ya no sirve, pero antes del Grip sigue evitándolo.
 
 ## Lo más importante que encontramos
 - **El árbol de habilidades no afecta al juego.** Comprar un nodo gasta memoria y sube un contador que se guarda y la interfaz muestra, pero ninguna lógica de juego lo usa: `GetLearnedNodes` no tiene llamadas (`NenAffinityService.luau:123`). Tampoco hay habilidades con nombre. Es la mayor carencia de diseño, y bloquea el builder.
@@ -171,7 +171,7 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 Encontrados leyendo el código, sin reproducirlos jugando. Los archivos están en `src/ServerScriptService/Services/`, y las líneas pueden moverse. **Los de esta lista están arreglados en `claude/2026-11-05-fix-contradictions`, sin fusionar ni probar. Las citas describen `main`.**
 
 **Sigue abierto, también en la rama:**
-- Resetear (Esc → Reset) estando caído parece evitar el Grip. Sin probar.
+- Resetear (Esc → Reset) estando caído, antes de que empiece el Grip, parece evitarlo. Durante el Grip ya no sirve. Sin probar.
 - Salir estando caído evita el Grip, porque el castigo por desconectarse en combate no existe aún.
 - Los datos de depuración de Studio pueden llegar al almacén real.
 

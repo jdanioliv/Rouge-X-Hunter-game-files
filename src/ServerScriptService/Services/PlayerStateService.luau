@@ -36,6 +36,7 @@ local states: { [Player]: Types.PlayerState } = {}
 
 -- Movement values captured on going down, restored on getting back up.
 local downedRestore: { [Player]: { walkSpeed: number, jumpPower: number } } = {}
+local gripRestore: { [Player]: { walkSpeed: number, jumpPower: number } } = {}
 
 local snapshotRemote = Remotes.Get("StateSnapshot")
 local feedbackRemote = Remotes.Get("CombatFeedback")
@@ -76,6 +77,8 @@ local function newState(): Types.PlayerState
 
 		isDowned = false,
 		nextDownedHealAt = 0,
+		isGripping = false,
+		isBeingGripped = false,
 		isDead = false,
 
 		lastAttackAt = 0,
@@ -123,6 +126,8 @@ local function resetVolatile(state)
 	state.auraState = "None"
 	state.ryuRatio = { offense = 0.5, defense = 0.5 }
 	state.isDowned = false
+	state.isGripping = false
+	state.isBeingGripped = false
 	state.isDead = false
 	state.isMeditating = false -- accumulated meditationProgress is progression and survives
 	state.attackLockedUntil = 0
@@ -176,7 +181,10 @@ function PlayerStateService.CanAct(player: Player): boolean
 	if not state then
 		return false
 	end
-	return not state.isDowned and not state.isGuardBroken and PlayerStateService.IsCharacterAlive(player)
+	return not state.isDowned
+		and not state.isGuardBroken
+		and not state.isGripping
+		and PlayerStateService.IsCharacterAlive(player)
 end
 
 -- The shared gate for melee and Hatsu: a parry frame-trap or stun extension stops
@@ -206,7 +214,7 @@ end
 
 function PlayerStateService.TryStartParry(player: Player): boolean
 	local state = states[player]
-	if not state or state.isDowned or state.isGuardBroken or state.isBlocking then
+	if not state or state.isDowned or state.isGuardBroken or state.isBlocking or state.isGripping then
 		return false
 	end
 	local now = os.clock()
@@ -226,7 +234,7 @@ function PlayerStateService.SetBlocking(player: Player, blocking: boolean): bool
 	end
 	-- A block may begin during a parry: holding F runs straight from one into the
 	-- other, and hits are checked against the parry first.
-	if blocking and (state.isDowned or state.isGuardBroken) then
+	if blocking and (state.isDowned or state.isGuardBroken or state.isGripping) then
 		return false
 	end
 	state.isBlocking = blocking
@@ -583,6 +591,51 @@ local function recoverFromDowned(player: Player, state)
 	PlayerStateService.PlayerRecovered:Fire(player)
 end
 
+-- CombatService runs the Grip's timer. These hold the attacker in place and mark the
+-- victim, whose healing timer stands still in stepPlayer while the mark is on.
+function PlayerStateService.BeginGrip(attacker: Player, victim: Player): boolean
+	local attackerState = states[attacker]
+	local victimState = states[victim]
+	if not attackerState or not victimState or not victimState.isDowned or victimState.isBeingGripped then
+		return false
+	end
+	if not PlayerStateService.CanAct(attacker) then
+		return false
+	end
+
+	attackerState.isGripping = true
+	victimState.isBeingGripped = true
+
+	local character = attacker.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		gripRestore[attacker] = { walkSpeed = humanoid.WalkSpeed, jumpPower = humanoid.JumpPower }
+		humanoid.WalkSpeed = 0
+		humanoid.JumpPower = 0
+	end
+	return true
+end
+
+function PlayerStateService.EndGrip(attacker: Player, victim: Player)
+	local attackerState = states[attacker]
+	if attackerState then
+		attackerState.isGripping = false
+	end
+	local victimState = states[victim]
+	if victimState then
+		victimState.isBeingGripped = false
+	end
+
+	local restore = gripRestore[attacker]
+	gripRestore[attacker] = nil
+	local character = attacker.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid and restore then
+		humanoid.WalkSpeed = restore.walkSpeed
+		humanoid.JumpPower = restore.jumpPower
+	end
+end
+
 -- Strips a soul node (Grip finisher, awakening failure, or future
 -- disconnect payload). Kills the character; at 0 nodes triggers the wipe path.
 function PlayerStateService.LoseSoulNode(player: Player, reason: string)
@@ -776,7 +829,9 @@ local function stepPlayer(player: Player, state, deltaTime: number)
 
 	if state.isDowned then
 		-- Downed recovery heals in steps. The small margin stops rounding from adding a fifth heal.
-		if now >= state.nextDownedHealAt then
+		if state.isBeingGripped then
+			state.nextDownedHealAt += deltaTime
+		elseif now >= state.nextDownedHealAt then
 			state.nextDownedHealAt += Constants.DOWNED_REGEN_INTERVAL
 			state.hp = math.min(state.maxHp, state.hp + state.maxHp * Constants.DOWNED_REGEN_FRACTION)
 			if state.hp >= state.maxHp * Constants.DOWNED_RECOVER_HP_FRACTION - 0.001 then
