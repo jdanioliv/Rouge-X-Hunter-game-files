@@ -148,7 +148,7 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 | El HUD lleva el hexágono abajo a la izquierda y la vida abajo. Las vistas previas de estados se quedan por ahora | 2026-11-07 |
 
 **Preguntas abiertas para el dueño**
-0. **Prueba en Studio:** el dueño la hará cuando conecte este chat al MCP integrado de Roblox Studio (Assistant > ... > Manage MCP Servers). Trato hecho el 2026-11-07. La app de escritorio Hermes sigue instalada hasta que confirme si se borra.
+0. **Prueba en Studio:** el dueño la hará cuando conecte este chat al MCP integrado de Roblox Studio (Assistant > ... > Manage MCP Servers). Trato hecho el 2026-11-07. La app de escritorio Hermes se borró del PC con su permiso el 2026-11-07. `uv`, que el MCP de Blender necesita, pasó a `~/.local/bin`. El dueño aún debe borrar su clave en OpenRouter.
 1. ¿Qué premisa de historia elige? Ver `Reference/GDD.md`, sección 7. Recomiendo A como escenario y B como misterio.
 2. ¿Cómo gana dinero el juego: solo cosméticos, o también poder? Recomiendo solo cosméticos.
 3. ¿Se mantiene la identidad de Hunter x Hunter, o se usan nombres y mundo propios? Recomiendo nombres propios. No bloquea W0 ni W1, porque los nombres visibles irán en una sola tabla, pero hay que decidirlo antes de publicar la web o crear arte.
