@@ -147,6 +147,7 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 | El botón Reset de Roblox se desactiva en combate | 2026-11-07 |
 | El HUD lleva el hexágono abajo a la izquierda y la vida abajo. Las vistas previas de estados se quedan por ahora | 2026-11-07 |
 | Historia original: no copiar la de Hunter x Hunter. Deepwoken es la inspiración principal | 2026-11-07 |
+| Premisa: The Drowned Licence como escenario y The Severed Hexagon como misterio | 2026-11-07 |
 | Objetivo: que la gente vuelva con amigos y una comunidad dé feedback constante | 2026-11-07 |
 | Visión en la sección 12 del GDD: nombre elegido de una lista, apellido como linaje, mapa enorme, enemigos difíciles, libros de lore, buena interfaz, animaciones de carga | 2026-11-07 |
 | Limpieza semanal y su planificador eliminados, con sus líneas falsas de `CLAUDE.md` | 2026-11-07 |
@@ -154,7 +155,7 @@ Rutas dentro del vault, en `GameNotes/` una vez preparada la sesión. Los enlace
 **Preguntas abiertas para el dueño**
 0. **Prueba en Studio:** el dueño la hará cuando conecte este chat al MCP integrado de Roblox Studio (Assistant > ... > Manage MCP Servers). Trato hecho el 2026-11-07. La app de escritorio Hermes se borró del PC con su permiso el 2026-11-07. `uv`, que el MCP de Blender necesita, pasó a `~/.local/bin`. El dueño aún debe borrar su clave en OpenRouter.
 0b. ForgeGUI y otras compras: recomendé no pagar todavía. Ver `Reference/Art-and-Tool-Choices` en el vault. El dueño aún no decide.
-1. ¿Qué premisa de historia elige? Ver `Reference/GDD.md`, sección 7. Recomiendo A como escenario y B como misterio.
+1. ¿Qué hace el jugador después de despertar el Nen? Es el mayor vacío del diseño. La premisa ya está elegida: The Drowned Licence como escenario y The Severed Hexagon como misterio.
 2. ¿Cómo gana dinero el juego: solo cosméticos, o también poder? Recomiendo solo cosméticos.
 3. ¿Se mantiene la identidad de Hunter x Hunter, o se usan nombres y mundo propios? Recomiendo nombres propios. No bloquea W0 ni W1, porque los nombres visibles irán en una sola tabla, pero hay que decidirlo antes de publicar la web o crear arte.
 4. ¿Se ha jugado alguna vez el juego en Studio? No hay registro.
